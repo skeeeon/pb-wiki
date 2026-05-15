@@ -36,6 +36,23 @@
   --color-brand-navy-50:    #2E64B5;
 }
 
+/* Dark-mode surface palette — re-point the dark zinc shades to the
+   Velociti navy palette so every `dark:bg-zinc-950`, `dark:border-zinc-700`,
+   etc. resolves to a navy tone without touching component classes. The
+   ordering preserves the existing elevation hierarchy:
+     950 (page) → navy (#1D2B37)
+     900 (panel/surface) → navy-300 (#213957)
+     800 (elevated / hover) → navy-200 (#264776)
+     700 (visible border) → navy-100 (#2A5696)
+   Lighter shades (100/300/400) stay as zinc — they're text on dark and
+   read fine over navy. */
+html.dark {
+  --color-zinc-950: var(--color-brand-navy);
+  --color-zinc-900: var(--color-brand-navy-300);
+  --color-zinc-800: var(--color-brand-navy-200);
+  --color-zinc-700: var(--color-brand-navy-100);
+}
+
 /* Base text + surface colors. Setting these on `body` means every route
    inherits readable defaults — including standalone pages like /login that
    don't sit under App.vue's chrome wrapper and therefore weren't picking

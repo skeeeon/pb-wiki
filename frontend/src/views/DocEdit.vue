@@ -7,11 +7,13 @@ import 'md-editor-v3/lib/style.css'
 import { pb } from '@/lib/pb'
 import { useDoc } from '@/composables/useDoc'
 import { useAuthStore } from '@/stores/auth'
+import { useTheme } from '@/composables/useTheme'
 
 const props = defineProps<{ path: string; mode: 'edit' | 'new' }>()
 const path = toRef(props, 'path')
 const router = useRouter()
 const auth = useAuthStore()
+const { theme } = useTheme()
 
 // In 'new' mode we never fetch — passing a sentinel path that won't exist so
 // the composable's 404 branch fires and we stay in a blank-form state.
@@ -145,6 +147,7 @@ async function deleteDoc() {
     <MdEditor
       v-model="body"
       language="en-US"
+      :theme="theme"
       :on-upload-img="onUploadImg"
       :style="{ height: 'calc(100dvh - 16rem)' }"
     />

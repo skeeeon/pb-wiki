@@ -3,6 +3,7 @@ import { computed, toRef } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import { useDoc } from '@/composables/useDoc'
+import { useDocumentTitle } from '@/composables/useDocumentTitle'
 import { useAuthStore } from '@/stores/auth'
 import Breadcrumbs from '@/components/Breadcrumbs.vue'
 import MarkdownView from '@/components/MarkdownView.vue'
@@ -12,6 +13,8 @@ const path = toRef(props, 'path')
 const auth = useAuthStore()
 
 const { doc, loading, notFound, error } = useDoc(() => path.value)
+
+useDocumentTitle(() => doc.value?.title || null)
 
 const editTo = computed(() => `/edit/${path.value}`)
 const newChildTo = computed(() => `/new/${path.value ? path.value + '/' : ''}`)

@@ -39,8 +39,8 @@ const html = computed(() => md.render(props.body ?? ''))
 .markdown-body hr  { margin: 1.5rem 0; border-color: rgb(228 228 231); }
 
 .dark .markdown-body a { color: var(--color-brand-blue-dark); }
-.dark .markdown-body code, .dark .markdown-body pre { background: rgb(39 39 42); }
-.dark .markdown-body blockquote { border-left-color: rgb(63 63 70); color: rgb(212 212 216); }
-.dark .markdown-body th, .dark .markdown-body td { border-color: rgb(63 63 70); }
-.dark .markdown-body hr { border-color: rgb(39 39 42); }
+.dark .markdown-body code, .dark .markdown-body pre { background: var(--color-brand-navy-200); }
+.dark .markdown-body blockquote { border-left-color: var(--color-brand-navy-100); color: rgb(212 212 216); }
+.dark .markdown-body th, .dark .markdown-body td { border-color: var(--color-brand-navy-100); }
+.dark .markdown-body hr { border-color: var(--color-brand-navy-200); }
 </style>

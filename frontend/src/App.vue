@@ -3,10 +3,13 @@ import { onMounted, computed, ref, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 
 import { useConfigStore } from '@/stores/config'
+import { useDocumentTitle } from '@/composables/useDocumentTitle'
 import Sidebar from '@/components/Sidebar.vue'
 
 const config = useConfigStore()
 const route = useRoute()
+
+useDocumentTitle()
 
 // Hide the chrome on the login page so it can render full-screen.
 const showChrome = computed(() => route.name !== 'login')
