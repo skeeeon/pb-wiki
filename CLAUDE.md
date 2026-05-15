@@ -56,11 +56,11 @@ The access evaluator normalizes both pattern and path to have a leading `/` befo
 - `documents` — markdown content; `path` unique, `updated_by` relation to users.
 - `assets` — uploaded images for markdown embeds (public file URLs).
 - `access_rules` — `pattern`, `access` (public/private/restricted), `groups`, `priority`. Loaded `ORDER BY priority ASC`; **first match wins**.
-- `wiki_config` — singleton row (seeded by its migration). Holds `private_default`, `oauth_email_allowlist`, `default_landing_path`. CreateRule is `nil` to keep it singleton.
+- `wiki_config` — singleton row (seeded by its migration). Holds `private_default`, `require_login`, `default_landing_path`. CreateRule is `nil` to keep it singleton.
 
 ### OAuth allowlist
 
-`hooks/auth.go` installs an `OnRecordAuthWithOAuth2Request` hook that reads `wiki_config.oauth_email_allowlist`. Each entry is either a full email (`alice@example.com`, exact match) or a bare domain (`example.com`, matches anything `@example.com`). Empty list disables the check. This replaces running oauth2-proxy in front of the app — keep the logic terse and the test cases in `auth_test.go` covering the edge cases.
+Email-domain gating is deliberately *not* a pb-wiki feature — PocketBase's `EmailField.OnlyDomains` validator on the `users.email` field handles it natively for both password sign-up and OAuth. Admins set the list in the PB admin UI under Collections → users → `email` → Only domains. The only `users`-collection hook pb-wiki installs is `hooks/auth.go`'s default-role assigner (newly-created users default to `viewer` since OAuth sign-up doesn't supply a role).
 
 ### Frontend
 

@@ -20,7 +20,6 @@ export interface WikiConfig {
   title: string
   private_default: boolean
   require_login: boolean
-  oauth_email_allowlist: string[]
   default_landing_path: string
 }
 

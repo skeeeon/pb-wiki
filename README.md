@@ -6,7 +6,7 @@ A flat-feeling markdown wiki built on [PocketBase](https://pocketbase.io) + Vue 
 - **Markdown documents** organized by slash-separated paths (`engineering/runbooks/deploy`). The tree is implicit in the path; moving a subtree is a prefix update.
 - **Three roles**: `admin` / `editor` / `viewer`.
 - **Path-based access rules** with first-match-wins glob matching (ported 1:1 from leomoon-studios/wiki-go's `internal/auth/access.go`).
-- **SSO via PocketBase OAuth providers**, with an email-domain allow-list — replaces the need for oauth2-proxy in front of the app.
+- **SSO via PocketBase OAuth providers** — combined with PocketBase's native `OnlyDomains` validator on the users `email` field, this replaces the need for oauth2-proxy in front of the app.
 - **Split-pane markdown editing** via [md-editor-v3](https://github.com/imzbf/md-editor-v3).
 
 ## Quick start (Docker)
@@ -63,13 +63,13 @@ Migrations live in [`migrations/`](./migrations/) and self-register via `init()`
 | `documents` | `path` (unique), `title`, `body` (markdown), `updated_by`. Empty `path` is the homepage. |
 | `assets` | Uploaded images embedded in markdown. Public file URLs. |
 | `access_rules` | `pattern`, `access` (public/private/restricted), `groups`, `priority`, `description`. First-match-wins. |
-| `wiki_config` | Singleton row: `title`, `private_default`, `oauth_email_allowlist`, `default_landing_path`. |
+| `wiki_config` | Singleton row: `title`, `private_default`, `require_login`, `default_landing_path`. |
 
 ## Permissions
 
 - **Role hierarchy** gates *actions*: only admin/editor can create/update/delete documents.
 - **Access rules** gate *paths*: rules are matched against `documents.path` (and the wiki's `private_default` flag is the fallback for unmatched paths). Admins bypass all rules.
-- **OAuth domain allow-list**: configured in the admin Settings page. Bare entries (`example.com`) match anything `@example.com`; full emails (`alice@example.com`) match exactly. Empty list disables the check.
+- **OAuth domain allow-list**: configured natively in PocketBase under Collections → `users` → `email` field → "Only domains" (set the list of allowed domains there). Applies to both password sign-up and OAuth.
 
 Path-glob syntax (matches wiki-go):
 
@@ -111,8 +111,7 @@ pb-wiki/
 go test ./...
 ```
 
-- `internal/access` — 36 cases covering glob translation, first-match precedence, admin bypass, group overlap, fail-closed unknown access levels.
-- `internal/hooks` — 12 cases covering the OAuth email-domain allow-list matching.
+- `internal/access` — covers glob translation, first-match precedence, admin bypass, group overlap, fail-closed unknown access levels, and the `require_login` lockdown flag.
 
 ## License
 
