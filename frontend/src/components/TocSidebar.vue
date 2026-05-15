@@ -4,9 +4,9 @@ import type { Heading } from '@/lib/markdown'
 
 const props = defineProps<{ headings: Heading[] }>()
 
-// Restrict TOC to h2-h4 — h1 is the page title (which we already render in
-// DocView), and h5/h6 produce too dense a tree to be useful as a nav.
-const items = computed(() => props.headings.filter((h) => h.level >= 2 && h.level <= 4))
+// h1-h4 land in the TOC. h5/h6 are excluded — they produce too dense a tree
+// to be useful as nav.
+const items = computed(() => props.headings.filter((h) => h.level >= 1 && h.level <= 4))
 
 // Re-base the level so the smallest visible heading sits at indent 0.
 const minLevel = computed(() => items.value.reduce((m, h) => Math.min(m, h.level), 6))

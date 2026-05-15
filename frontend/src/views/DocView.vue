@@ -22,7 +22,7 @@ const editTo = computed(() => `/edit/${path.value}`)
 const newChildTo = computed(() => `/new/${path.value ? path.value + '/' : ''}`)
 
 const rendered = computed(() => renderDoc(doc.value?.body ?? ''))
-const showToc = computed(() => rendered.value.showToc && rendered.value.headings.some((h) => h.level >= 2 && h.level <= 4))
+const showToc = computed(() => rendered.value.showToc && rendered.value.headings.some((h) => h.level >= 1 && h.level <= 4))
 </script>
 
 <template>
