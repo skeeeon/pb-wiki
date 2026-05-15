@@ -34,6 +34,11 @@ defineProps<{ html: string }>()
 .markdown-body li.task-list-item { display: flex; align-items: baseline; gap: 0.5rem; }
 .markdown-body li.task-list-item input[type="checkbox"] { transform: translateY(0.1rem); }
 
+/* YouTube embeds — unscoped so the editor preview renders them the same
+   way. Aspect ratio keeps the iframe responsive without JS. */
+.youtube-embed { aspect-ratio: 16 / 9; max-width: 720px; margin: 0.75rem 0; border-radius: 0.375rem; overflow: hidden; background: rgb(0 0 0); }
+.youtube-embed iframe { width: 100%; height: 100%; border: 0; display: block; }
+
 /* Callouts — ::: note / tip / warning / danger ::: — unscoped so they
    also render correctly inside the editor preview pane (.md-editor-preview),
    not just inside .markdown-body. */

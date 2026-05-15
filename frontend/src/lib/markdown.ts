@@ -4,6 +4,8 @@ import anchor from 'markdown-it-anchor'
 import taskLists from 'markdown-it-task-lists'
 import container from 'markdown-it-container'
 
+import { applyYoutubePlugin } from './markdown-youtube'
+
 export interface Heading {
   level: number
   text: string
@@ -73,6 +75,10 @@ export function applyCalloutContainers(md: MarkdownIt) {
 }
 
 applyCalloutContainers(md)
+applyYoutubePlugin(md)
+
+// Re-export so the editor preview (md-editor-v3) can wire the same syntax.
+export { applyYoutubePlugin }
 
 // `<!-- toc: false -->` or `<!-- no-toc -->` at the top of a doc suppresses
 // the auto-sidebar TOC. Stripped before rendering so it doesn't appear as text.
