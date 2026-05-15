@@ -123,7 +123,7 @@ async function save() {
         <button
           type="submit"
           :disabled="saving"
-          class="rounded-md bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 px-3 py-2 text-sm font-medium disabled:opacity-60"
+          class="rounded-md bg-brand-red hover:bg-brand-red-hover text-white px-3 py-2 text-sm font-medium disabled:opacity-60"
         >
           {{ saving ? 'Saving…' : 'Save settings' }}
         </button>

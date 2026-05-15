@@ -1,17 +1,25 @@
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { onMounted, computed, ref, watch } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
 
-import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
 import Sidebar from '@/components/Sidebar.vue'
 
-const auth = useAuthStore()
 const config = useConfigStore()
 const route = useRoute()
 
 // Hide the chrome on the login page so it can render full-screen.
 const showChrome = computed(() => route.name !== 'login')
+
+// Mobile drawer state. Closes automatically on navigation so tapping a doc
+// link inside the drawer doesn't leave it hanging open.
+const mobileOpen = ref(false)
+watch(
+  () => route.fullPath,
+  () => {
+    mobileOpen.value = false
+  },
+)
 
 onMounted(() => {
   config.load()
@@ -21,39 +29,52 @@ onMounted(() => {
 <template>
   <RouterView v-if="!showChrome" />
 
-  <div v-else class="min-h-dvh flex flex-col bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
-    <header class="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-      <div class="max-w-6xl mx-auto px-4 h-12 flex items-center justify-between">
-        <RouterLink to="/" class="text-sm font-semibold">
-          {{ config.config?.title || 'pb-wiki' }}
-        </RouterLink>
-
-        <nav class="flex items-center gap-3 text-sm">
-          <template v-if="auth.isAuthenticated">
-            <RouterLink v-if="auth.isAdmin" to="/admin" class="underline">Admin</RouterLink>
-            <span class="text-zinc-500">
-              {{ auth.record?.email }}
-              <span class="text-xs text-zinc-400">({{ auth.role }})</span>
-            </span>
-            <button class="underline" @click="auth.logout">Sign out</button>
-          </template>
-          <template v-else>
-            <RouterLink to="/login" class="underline">Sign in</RouterLink>
-          </template>
-        </nav>
-      </div>
+  <div v-else class="min-h-dvh">
+    <!-- Mobile top bar — hamburger + title. Hidden on md+. -->
+    <header
+      class="md:hidden fixed inset-x-0 top-0 z-30 h-12 flex items-center px-3 gap-3 border-b-2 border-brand-red bg-white dark:bg-zinc-900"
+    >
+      <button
+        type="button"
+        class="p-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
+        aria-label="Open menu"
+        @click="mobileOpen = true"
+      >
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
+      <span class="text-sm font-semibold truncate">
+        {{ config.config?.title || 'pb-wiki' }}
+      </span>
     </header>
 
-    <div class="flex-1 flex">
-      <aside class="hidden md:block w-64 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 overflow-y-auto">
-        <Sidebar />
-      </aside>
+    <!-- Mobile backdrop -->
+    <div
+      v-show="mobileOpen"
+      class="md:hidden fixed inset-0 z-40 bg-black/50"
+      @click="mobileOpen = false"
+    />
 
-      <main class="flex-1 p-6 overflow-x-auto">
-        <div class="max-w-3xl mx-auto">
-          <RouterView />
-        </div>
-      </main>
-    </div>
+    <!-- Sidebar — always fixed. Off-screen on mobile, drawer when opened;
+         always visible on md+. Fixed avoids the sticky-in-flex gotcha where
+         a stretched flex parent prevents sticky from engaging. -->
+    <aside
+      class="fixed top-0 left-0 z-50 w-80 h-dvh flex flex-col
+             border-r-2 border-brand-red bg-white dark:bg-zinc-900
+             transition-transform duration-200 ease-out
+             -translate-x-full md:translate-x-0"
+      :class="{ 'translate-x-0': mobileOpen }"
+    >
+      <Sidebar />
+    </aside>
+
+    <main class="md:ml-80 p-6 pt-16 md:pt-6 overflow-x-auto">
+      <div class="max-w-3xl mx-auto">
+        <RouterView />
+      </div>
+    </main>
   </div>
 </template>

@@ -116,7 +116,7 @@ async function deleteDoc() {
         <button
           type="button"
           :disabled="saving || (mode === 'edit' && loading)"
-          class="rounded-md bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 px-3 py-1.5 text-sm font-medium disabled:opacity-60"
+          class="rounded-md bg-brand-red hover:bg-brand-red-hover text-white px-3 py-1.5 text-sm font-medium disabled:opacity-60"
           @click="save"
         >
           {{ saving ? 'Saving…' : 'Save' }}

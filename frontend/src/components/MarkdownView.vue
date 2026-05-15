@@ -28,7 +28,7 @@ const html = computed(() => md.render(props.body ?? ''))
 .markdown-body ul { list-style: disc; padding-left: 1.5rem; margin-bottom: 0.75rem; }
 .markdown-body ol { list-style: decimal; padding-left: 1.5rem; margin-bottom: 0.75rem; }
 .markdown-body li { margin-bottom: 0.25rem; }
-.markdown-body a  { color: #2563eb; text-decoration: underline; }
+.markdown-body a  { color: var(--color-brand-blue); text-decoration: underline; }
 .markdown-body code { padding: 0.125rem 0.25rem; border-radius: 0.25rem; background: rgb(244 244 245); font-size: 0.875rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .markdown-body pre  { padding: 0.75rem; border-radius: 0.375rem; background: rgb(244 244 245); overflow-x: auto; margin-bottom: 0.75rem; }
 .markdown-body pre code { background: transparent; padding: 0; }
@@ -38,11 +38,9 @@ const html = computed(() => md.render(props.body ?? ''))
 .markdown-body img { max-width: 100%; border-radius: 0.375rem; margin: 0.75rem 0; }
 .markdown-body hr  { margin: 1.5rem 0; border-color: rgb(228 228 231); }
 
-@media (prefers-color-scheme: dark) {
-  .markdown-body a { color: #60a5fa; }
-  .markdown-body code, .markdown-body pre { background: rgb(39 39 42); }
-  .markdown-body blockquote { border-left-color: rgb(63 63 70); color: rgb(212 212 216); }
-  .markdown-body th, .markdown-body td { border-color: rgb(63 63 70); }
-  .markdown-body hr { border-color: rgb(39 39 42); }
-}
+.dark .markdown-body a { color: var(--color-brand-blue-dark); }
+.dark .markdown-body code, .dark .markdown-body pre { background: rgb(39 39 42); }
+.dark .markdown-body blockquote { border-left-color: rgb(63 63 70); color: rgb(212 212 216); }
+.dark .markdown-body th, .dark .markdown-body td { border-color: rgb(63 63 70); }
+.dark .markdown-body hr { border-color: rgb(39 39 42); }
 </style>

@@ -1,1 +1,58 @@
 @import "tailwindcss";
+
+/*
+ * Class-based dark mode. By default Tailwind v4 keys `dark:` off
+ * prefers-color-scheme; we override here so the in-app theme toggle (see
+ * useTheme.ts) can drive it deterministically via `<html class="dark">`.
+ * The composable still falls back to prefers-color-scheme for the user's
+ * first visit so a system-dark visitor isn't blinded by white.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Brand palette — exposed to Tailwind v4 as a custom color scale so we can
+ * write `bg-brand-red`, `text-brand-blue`, etc. anywhere in the app.
+ *
+ *   Red    #F9423A — primary CTAs, danger
+ *   Blue   #3780F4 — links, secondary action
+ *   Yellow #F9CB46 — accent / highlights
+ *
+ * Navy gradient (#1D2B37 → #2E64B5) tints sidebar / surface colors in dark
+ * mode. The lighter blue variant (#5a9af5) is the dark-mode link color
+ * since the standard blue gets lost on dark backgrounds.
+ */
+@theme {
+  --color-brand-red:        #F9423A;
+  --color-brand-red-hover:  #d93832;
+  --color-brand-blue:       #3780F4;
+  --color-brand-blue-hover: #2A5696;
+  --color-brand-blue-dark:  #5a9af5;
+  --color-brand-yellow:     #F9CB46;
+
+  --color-brand-navy:       #1D2B37;
+  --color-brand-navy-300:   #213957;
+  --color-brand-navy-200:   #264776;
+  --color-brand-navy-100:   #2A5696;
+  --color-brand-navy-50:    #2E64B5;
+}
+
+/* Base text + surface colors. Setting these on `body` means every route
+   inherits readable defaults — including standalone pages like /login that
+   don't sit under App.vue's chrome wrapper and therefore weren't picking
+   up its text-color utility classes. */
+body {
+  background-color: var(--color-zinc-50);
+  color: var(--color-zinc-900);
+}
+html.dark body {
+  background-color: var(--color-zinc-950);
+  color: var(--color-zinc-100);
+}
+
+/* Selection highlight uses the brand blue. */
+::selection {
+  background-color: rgba(55, 128, 244, 0.3);
+}
+.dark ::selection {
+  background-color: rgba(90, 154, 245, 0.3);
+}

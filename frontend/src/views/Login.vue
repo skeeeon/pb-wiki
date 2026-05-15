@@ -102,7 +102,7 @@ function redirectAfterLogin() {
         <button
           type="submit"
           :disabled="submitting"
-          class="w-full rounded-md bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 px-3 py-2 text-sm font-medium disabled:opacity-60"
+          class="w-full rounded-md bg-brand-red hover:bg-brand-red-hover text-white px-3 py-2 text-sm font-medium disabled:opacity-60"
         >
           {{ submitting ? 'Signing in…' : 'Sign in' }}
         </button>
