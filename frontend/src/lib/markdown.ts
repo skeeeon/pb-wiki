@@ -33,15 +33,11 @@ export function slugify(text: string): string {
 // breaks    — single newlines don't become <br>; require blank lines.
 const md = new MarkdownIt({ html: false, linkify: true, breaks: false })
 
-md.use(anchor, {
-  slugify,
-  permalink: anchor.permalink.linkInsideHeader({
-    symbol: '#',
-    placement: 'before',
-    ariaHidden: true,
-    class: 'heading-anchor',
-  }),
-})
+// No visible permalink — we just need `id` attributes so the TOC can scroll
+// to headings and so #fragment URLs work. The TOC sidebar carries the
+// "jump to section" affordance; an inline # would push heading text right
+// of the body's left edge whenever it appeared.
+md.use(anchor, { slugify })
 
 md.use(taskLists, { enabled: true, label: true })
 
