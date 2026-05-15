@@ -21,7 +21,7 @@ const newChildTo = computed(() => `/new/${path.value ? path.value + '/' : ''}`)
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto space-y-4">
+  <div class="max-w-5xl mx-auto space-y-4">
     <Breadcrumbs :path="path" />
 
     <div v-if="loading" class="text-zinc-500 text-sm">Loading…</div>
