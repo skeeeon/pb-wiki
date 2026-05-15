@@ -99,7 +99,7 @@ async function deleteDoc() {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="max-w-6xl mx-auto space-y-4">
     <header class="flex items-baseline justify-between gap-4 flex-wrap">
       <h1 class="text-lg font-semibold">
         {{ mode === 'edit' ? 'Edit' : 'New' }} document
@@ -142,7 +142,12 @@ async function deleteDoc() {
       </label>
     </div>
 
-    <MdEditor v-model="body" :on-upload-img="onUploadImg" />
+    <MdEditor
+      v-model="body"
+      language="en-US"
+      :on-upload-img="onUploadImg"
+      :style="{ height: 'calc(100dvh - 16rem)' }"
+    />
 
     <p v-if="errorMsg" class="text-sm text-red-600 dark:text-red-400">
       {{ errorMsg }}

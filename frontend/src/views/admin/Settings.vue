@@ -59,7 +59,7 @@ async function save() {
 </script>
 
 <template>
-  <div>
+  <div class="max-w-3xl mx-auto">
     <AdminNav />
 
     <header class="flex items-baseline justify-between mb-4">

@@ -118,7 +118,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div>
+  <div class="max-w-5xl mx-auto">
     <AdminNav />
 
     <header class="flex items-baseline justify-between mb-4">

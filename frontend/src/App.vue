@@ -72,9 +72,7 @@ onMounted(() => {
     </aside>
 
     <main class="md:ml-80 p-6 pt-16 md:pt-6 overflow-x-auto">
-      <div class="max-w-3xl mx-auto">
-        <RouterView />
-      </div>
+      <RouterView />
     </main>
   </div>
 </template>
