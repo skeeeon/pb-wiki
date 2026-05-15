@@ -32,7 +32,7 @@ func registerDocumentHooks(app *pocketbase.PocketBase) {
 		if err != nil {
 			return err
 		}
-		privateDefault, err := loadPrivateDefault(e.App)
+		cfg, err := loadConfigFlags(e.App)
 		if err != nil {
 			return err
 		}
@@ -40,7 +40,7 @@ func registerDocumentHooks(app *pocketbase.PocketBase) {
 
 		filtered := make([]*core.Record, 0, len(e.Records))
 		for _, r := range e.Records {
-			if access.CanAccess(r.GetString("path"), user, rules, privateDefault) {
+			if access.CanAccess(r.GetString("path"), user, rules, cfg.privateDefault, cfg.requireLogin) {
 				filtered = append(filtered, r)
 			}
 		}
@@ -77,9 +77,9 @@ func canAccessRecord(app core.App, auth *core.Record, doc *core.Record) (bool, e
 	if err != nil {
 		return false, err
 	}
-	privateDefault, err := loadPrivateDefault(app)
+	cfg, err := loadConfigFlags(app)
 	if err != nil {
 		return false, err
 	}
-	return access.CanAccess(doc.GetString("path"), recordToUser(auth), rules, privateDefault), nil
+	return access.CanAccess(doc.GetString("path"), recordToUser(auth), rules, cfg.privateDefault, cfg.requireLogin), nil
 }

@@ -26,14 +26,24 @@ func loadRules(app core.App) ([]access.Rule, error) {
 	return rules, nil
 }
 
-// loadPrivateDefault returns the wiki_config.private_default flag, which
-// decides whether unmatched paths are accessible to anonymous users.
-func loadPrivateDefault(app core.App) (bool, error) {
+// configFlags is the bundle of wiki_config booleans the access evaluator
+// needs. Loaded together because each document hook needs both — saves a
+// duplicate FindFirstRecordByFilter call per request.
+type configFlags struct {
+	privateDefault bool
+	requireLogin   bool
+}
+
+// loadConfigFlags returns the access-relevant flags from wiki_config.
+func loadConfigFlags(app core.App) (configFlags, error) {
 	cfg, err := app.FindFirstRecordByFilter("wiki_config", "")
 	if err != nil {
-		return false, err
+		return configFlags{}, err
 	}
-	return cfg.GetBool("private_default"), nil
+	return configFlags{
+		privateDefault: cfg.GetBool("private_default"),
+		requireLogin:   cfg.GetBool("require_login"),
+	}, nil
 }
 
 // recordToUser projects an auth record onto the minimal shape the access

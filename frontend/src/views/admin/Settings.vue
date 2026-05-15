@@ -8,6 +8,7 @@ const config = useConfigStore()
 
 const title = ref('')
 const privateDefault = ref(false)
+const requireLogin = ref(false)
 const allowlistText = ref('')
 const defaultLandingPath = ref('')
 
@@ -22,6 +23,7 @@ watch(
     if (!c) return
     title.value = c.title
     privateDefault.value = c.private_default
+    requireLogin.value = c.require_login
     allowlistText.value = (c.oauth_email_allowlist ?? []).join('\n')
     defaultLandingPath.value = c.default_landing_path
   },
@@ -43,6 +45,7 @@ async function save() {
     await config.save({
       title: title.value,
       private_default: privateDefault.value,
+      require_login: requireLogin.value,
       oauth_email_allowlist: allowlistText.value
         .split(/[\n,]/)
         .map((s) => s.trim())
@@ -88,6 +91,21 @@ async function save() {
           <span class="block text-zinc-500">
             When checked, paths not matched by any access rule require login. When unchecked,
             unmatched paths are world-readable.
+          </span>
+        </span>
+      </label>
+
+      <label class="flex items-start gap-2 text-sm">
+        <input
+          v-model="requireLogin"
+          type="checkbox"
+          class="mt-1"
+        />
+        <span>
+          <span class="text-zinc-700 dark:text-zinc-300 font-medium">Require login for the entire wiki</span>
+          <span class="block text-zinc-500">
+            When checked, anonymous visitors are redirected to the login page from every route —
+            including the homepage. Overrides explicit <code>public</code> access rules.
           </span>
         </span>
       </label>

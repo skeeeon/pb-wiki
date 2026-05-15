@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth'
+import { useConfigStore } from '@/stores/config'
 import type { Role } from '@/lib/types'
 
 declare module 'vue-router' {
@@ -77,6 +78,16 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const auth = useAuthStore()
+  const config = useConfigStore()
+
+  // Wiki-wide lockdown: when wiki_config.require_login is on, every route
+  // except /login itself demands an authenticated session. Mirrors the
+  // backend's CanAccess early-return so the UX matches what the API would
+  // enforce anyway. wiki_config is eager-loaded in main.ts.
+  const lockedDown = config.config?.require_login === true
+  if (lockedDown && !auth.isAuthenticated && to.name !== 'login') {
+    return { name: 'login', query: { redirect: to.fullPath } }
+  }
 
   const needsAuth = to.meta.requiresAuth || (to.meta.requiresRole?.length ?? 0) > 0
   if (needsAuth && !auth.isAuthenticated) {

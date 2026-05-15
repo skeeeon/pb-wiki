@@ -44,15 +44,22 @@ type User struct {
 // CanAccess reports whether user may read path under the given rules.
 //
 //  1. Admins bypass all rules.
-//  2. The first rule whose pattern matches path is the one applied.
-//  3. If no rule matches, the wiki's privateDefault decides: when true, only
+//  2. When requireLogin is true, every anonymous request is denied —
+//     including paths with an explicit `public` rule. This is the "wiki is
+//     fully locked down" toggle, distinct from privateDefault which only
+//     governs the fallback for unmatched paths.
+//  3. The first rule whose pattern matches path is the one applied.
+//  4. If no rule matches, the wiki's privateDefault decides: when true, only
 //     authenticated users are allowed through.
-//  4. Restricted rules require at least one overlap between the rule's groups
+//  5. Restricted rules require at least one overlap between the rule's groups
 //     and the user's groups.
-//  5. Unknown access levels (e.g. typos in config) deny — fail-closed.
-func CanAccess(path string, user *User, rules []Rule, privateDefault bool) bool {
+//  6. Unknown access levels (e.g. typos in config) deny — fail-closed.
+func CanAccess(path string, user *User, rules []Rule, privateDefault, requireLogin bool) bool {
 	if user != nil && user.Role == RoleAdmin {
 		return true
+	}
+	if requireLogin && user == nil {
+		return false
 	}
 	if rule := findMatchingRule(path, rules); rule != nil {
 		return checkRule(rule, user)

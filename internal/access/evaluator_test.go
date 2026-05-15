@@ -11,29 +11,33 @@ func TestCanAccess_AdminBypassesEverything(t *testing.T) {
 	admin := &User{Role: RoleAdmin}
 
 	// Admin must reach a restricted path even without the required group.
-	if !CanAccess("/finance/q4-report", admin, rules, true) {
+	if !CanAccess("/finance/q4-report", admin, rules, true, false) {
 		t.Error("admin should bypass restricted rule")
 	}
 	// And any other path, even with privateDefault=true.
-	if !CanAccess("/anything", admin, nil, true) {
+	if !CanAccess("/anything", admin, nil, true, false) {
 		t.Error("admin should bypass private wiki default")
+	}
+	// Admin still bypasses when the wiki is fully locked down.
+	if !CanAccess("/anything", admin, nil, false, true) {
+		t.Error("admin should bypass require_login")
 	}
 }
 
 func TestCanAccess_NoRule_PublicWiki(t *testing.T) {
-	if !CanAccess("/anything", nil, nil, false) {
+	if !CanAccess("/anything", nil, nil, false, false) {
 		t.Error("anonymous should access an unprotected public wiki")
 	}
-	if !CanAccess("/anything", &User{Role: RoleViewer}, nil, false) {
+	if !CanAccess("/anything", &User{Role: RoleViewer}, nil, false, false) {
 		t.Error("viewer should access an unprotected public wiki")
 	}
 }
 
 func TestCanAccess_NoRule_PrivateWiki(t *testing.T) {
-	if CanAccess("/anything", nil, nil, true) {
+	if CanAccess("/anything", nil, nil, true, false) {
 		t.Error("anonymous must be denied when wiki is private")
 	}
-	if !CanAccess("/anything", &User{Role: RoleViewer}, nil, true) {
+	if !CanAccess("/anything", &User{Role: RoleViewer}, nil, true, false) {
 		t.Error("authenticated viewer should access a private wiki without explicit rules")
 	}
 }
@@ -42,8 +46,30 @@ func TestCanAccess_PublicRuleOverridesPrivateWiki(t *testing.T) {
 	rules := []Rule{
 		{Pattern: "/help/**", Access: AccessPublic},
 	}
-	if !CanAccess("/help/getting-started", nil, rules, true) {
+	if !CanAccess("/help/getting-started", nil, rules, true, false) {
 		t.Error("public rule should let anonymous through even when wiki is private")
+	}
+}
+
+func TestCanAccess_RequireLoginOverridesEverything(t *testing.T) {
+	// require_login is the "fully locked down" flag — even paths with an
+	// explicit public rule must require auth. This is stricter than
+	// privateDefault, which only governs unmatched paths.
+	rules := []Rule{
+		{Pattern: "/help/**", Access: AccessPublic},
+	}
+	if CanAccess("/help/getting-started", nil, rules, false, true) {
+		t.Error("require_login must deny anonymous even on a public-rule path")
+	}
+	if CanAccess("/anything", nil, nil, false, true) {
+		t.Error("require_login must deny anonymous on unmatched paths too")
+	}
+	// Authenticated users still go through the normal rule machinery.
+	if !CanAccess("/help/getting-started", &User{Role: RoleViewer}, rules, false, true) {
+		t.Error("authenticated viewer should pass a public rule under require_login")
+	}
+	if !CanAccess("/anything", &User{Role: RoleEditor}, nil, false, true) {
+		t.Error("authenticated user should reach unmatched paths under require_login")
 	}
 }
 
@@ -66,7 +92,7 @@ func TestCanAccess_RestrictedRequiresGroupMembership(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := CanAccess("/finance/q4-report", tc.user, rules, false)
+			got := CanAccess("/finance/q4-report", tc.user, rules, false, false)
 			if got != tc.want {
 				t.Errorf("got %v, want %v", got, tc.want)
 			}
@@ -78,10 +104,10 @@ func TestCanAccess_PrivateRuleNeedsAuthOnly(t *testing.T) {
 	rules := []Rule{
 		{Pattern: "/internal/**", Access: AccessPrivate},
 	}
-	if CanAccess("/internal/runbook", nil, rules, false) {
+	if CanAccess("/internal/runbook", nil, rules, false, false) {
 		t.Error("private rule must reject anonymous")
 	}
-	if !CanAccess("/internal/runbook", &User{Role: RoleViewer}, rules, false) {
+	if !CanAccess("/internal/runbook", &User{Role: RoleViewer}, rules, false, false) {
 		t.Error("private rule should accept any authenticated user")
 	}
 }
@@ -93,10 +119,10 @@ func TestCanAccess_UnknownAccessLevelDeniesByDefault(t *testing.T) {
 	rules := []Rule{
 		{Pattern: "/foo", Access: "pubic"}, // intentional typo
 	}
-	if CanAccess("/foo", &User{Role: RoleEditor}, rules, false) {
+	if CanAccess("/foo", &User{Role: RoleEditor}, rules, false, false) {
 		t.Error("unknown access level must deny authenticated non-admin user")
 	}
-	if CanAccess("/foo", nil, rules, false) {
+	if CanAccess("/foo", nil, rules, false, false) {
 		t.Error("unknown access level must deny anonymous")
 	}
 }
@@ -110,13 +136,13 @@ func TestCanAccess_FirstMatchingRuleWins(t *testing.T) {
 		{Pattern: "/docs/**", Access: AccessPublic},
 	}
 
-	if CanAccess("/docs/secret/keys", nil, rules, false) {
+	if CanAccess("/docs/secret/keys", nil, rules, false, false) {
 		t.Error("specific restricted rule should win over later public rule")
 	}
-	if !CanAccess("/docs/secret/keys", &User{Role: RoleViewer, Groups: []string{"sec"}}, rules, false) {
+	if !CanAccess("/docs/secret/keys", &User{Role: RoleViewer, Groups: []string{"sec"}}, rules, false, false) {
 		t.Error("user in required group should pass specific rule")
 	}
-	if !CanAccess("/docs/getting-started", nil, rules, false) {
+	if !CanAccess("/docs/getting-started", nil, rules, false, false) {
 		t.Error("non-matching specific rule should fall through to public")
 	}
 }
