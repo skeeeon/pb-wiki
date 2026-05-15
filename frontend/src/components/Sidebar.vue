@@ -6,6 +6,7 @@ import { pb } from '@/lib/pb'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
 import { useTheme } from '@/composables/useTheme'
+import { useSearch, highlightMatch } from '@/composables/useSearch'
 import type { DocumentRecord } from '@/lib/types'
 import { buildTree, type TreeNode } from './sidebarTree'
 import SidebarTreeItem from './SidebarTreeItem.vue'
@@ -40,14 +41,7 @@ const hasHome = computed(() => docs.value.some((d) => d.path === ''))
 
 // ----- Search -----
 const q = ref('')
-const results = computed(() => {
-  const needle = q.value.trim().toLowerCase()
-  if (!needle) return []
-  return docs.value
-    .filter((d) => d.path.toLowerCase().includes(needle) || (d.title ?? '').toLowerCase().includes(needle))
-    .slice(0, 50)
-})
-const isSearching = computed(() => q.value.trim().length > 0)
+const { isSearching, results, bodyLoading } = useSearch(q, docs)
 
 // ----- Tree expand/collapse -----
 const expanded = ref<Set<string>>(new Set())
@@ -122,21 +116,31 @@ function toggleExpand(path: string) {
 
     <!-- Tree / search results — the ONLY scrollable region in the sidebar. -->
     <div class="flex-1 min-h-0 overflow-y-auto p-2">
-      <!-- Search results -->
+      <!-- Search results — instant title/path matches + debounced body matches -->
       <ul v-if="isSearching" class="space-y-0.5">
-        <li v-if="results.length === 0" class="text-sm text-zinc-500 px-2 py-1">No matches.</li>
-        <li v-for="d in results" :key="d.id">
+        <li v-if="results.length === 0 && !bodyLoading" class="text-sm text-zinc-500 px-2 py-1">
+          No matches.
+        </li>
+        <li v-for="r in results" :key="r.id">
           <RouterLink
-            :to="d.path === '' ? '/' : `/doc/${d.path}`"
+            :to="r.path === '' ? '/' : `/doc/${r.path}`"
             class="block px-2 py-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
             :class="{
               'bg-brand-blue/10 text-brand-blue dark:text-brand-blue-dark font-medium':
-                (d.path === '' && route.path === '/') || route.path === `/doc/${d.path}`,
+                (r.path === '' && route.path === '/') || route.path === `/doc/${r.path}`,
             }"
           >
-            <div class="text-sm truncate">{{ d.title || d.path || 'Home' }}</div>
-            <div v-if="d.path" class="text-xs text-zinc-500 truncate font-mono">{{ d.path }}</div>
+            <div class="text-sm truncate">{{ r.title || r.path || 'Home' }}</div>
+            <div v-if="r.path" class="text-xs text-zinc-500 truncate font-mono">{{ r.path }}</div>
+            <div
+              v-if="r.snippet"
+              class="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 line-clamp-2"
+              v-html="highlightMatch(r.snippet, q)"
+            />
           </RouterLink>
+        </li>
+        <li v-if="bodyLoading" class="text-xs text-zinc-500 px-2 py-1.5 italic">
+          Searching content…
         </li>
       </ul>
 
