@@ -1,0 +1,23 @@
+.git
+.github
+.gitignore
+.idea
+.vscode
+.DS_Store
+
+# Built artifacts — rebuilt inside the image.
+/pb-wiki
+/pb-wiki.exe
+frontend/dist
+frontend/node_modules
+node_modules
+
+# Runtime data.
+pb_data
+*.db
+*.db-shm
+*.db-wal
+
+# Docs / dev files not needed in the build context.
+README.md
+*.md
