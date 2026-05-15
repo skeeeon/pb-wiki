@@ -31,6 +31,16 @@ export const useAuthStore = defineStore('auth', () => {
     return await pb.collection('users').authWithOAuth2<UserRecord>({ provider })
   }
 
+  // Self-registration. The users collection's CreateRule is open and
+  // domain-gated via PB's EmailField.OnlyDomains (configured in the admin
+  // UI), so this call will be rejected server-side for disallowed domains.
+  // The auth hook assigns role=viewer on creation. We immediately sign the
+  // new user in so they land on the wiki without a second round-trip.
+  async function register(email: string, password: string, passwordConfirm: string) {
+    await pb.collection('users').create({ email, password, passwordConfirm })
+    return await pb.collection('users').authWithPassword<UserRecord>(email, password)
+  }
+
   function logout() {
     pb.authStore.clear()
   }
@@ -45,6 +55,7 @@ export const useAuthStore = defineStore('auth', () => {
     groups,
     loginWithPassword,
     loginWithOAuth,
+    register,
     logout,
   }
 })
