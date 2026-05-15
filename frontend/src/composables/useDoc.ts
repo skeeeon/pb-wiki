@@ -28,7 +28,9 @@ export function useDoc(path: () => string): {
     try {
       doc.value = await pb
         .collection('documents')
-        .getFirstListItem<DocumentRecord>(pb.filter('path = {:path}', { path: p }))
+        .getFirstListItem<DocumentRecord>(pb.filter('path = {:path}', { path: p }), {
+          expand: 'updated_by',
+        })
     } catch (err: unknown) {
       if (isClientError(err) && err.status === 404) {
         notFound.value = true

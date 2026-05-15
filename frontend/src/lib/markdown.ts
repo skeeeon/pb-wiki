@@ -41,6 +41,20 @@ md.use(anchor, { slugify })
 
 md.use(taskLists, { enabled: true, label: true })
 
+// External links open in a new tab with safe rel attributes. "External" =
+// any http(s):// URL — relative links and #fragments stay in-app so router
+// navigation isn't broken.
+const defaultLinkOpen = md.renderer.rules.link_open ?? ((tokens, idx, opts, _env, self) =>
+  self.renderToken(tokens, idx, opts))
+md.renderer.rules.link_open = (tokens, idx, opts, env, self) => {
+  const href = tokens[idx].attrGet('href') ?? ''
+  if (/^https?:\/\//i.test(href)) {
+    tokens[idx].attrSet('target', '_blank')
+    tokens[idx].attrSet('rel', 'noopener noreferrer')
+  }
+  return defaultLinkOpen(tokens, idx, opts, env, self)
+}
+
 // Installs our ::: note / tip / warning / danger ::: callout containers.
 // Exported so the editor preview (md-editor-v3) can use the same syntax via
 // its `markdownItConfig` hook — it ships its own !!! admonition, heading

@@ -23,8 +23,7 @@ export interface WikiConfig {
   default_landing_path: string
 }
 
-export interface DocumentRecord {
-  id: string
+export interface DocumentRecord extends RecordModel {
   path: string
   title: string
   body: string

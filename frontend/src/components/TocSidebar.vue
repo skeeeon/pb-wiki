@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import type { Heading } from '@/lib/markdown'
 
-const props = defineProps<{ headings: Heading[] }>()
+const props = defineProps<{ headings: Heading[]; activeSlug?: string | null }>()
 
 // h1-h4 land in the TOC. h5/h6 are excluded — they produce too dense a tree
 // to be useful as nav.
@@ -31,7 +31,12 @@ function scrollTo(slug: string, ev: MouseEvent) {
       >
         <a
           :href="`#${h.slug}`"
-          class="block py-0.5 text-zinc-600 dark:text-zinc-400 hover:text-brand-blue dark:hover:text-brand-blue-dark truncate"
+          class="block py-0.5 truncate hover:text-brand-blue dark:hover:text-brand-blue-dark"
+          :class="
+            activeSlug === h.slug
+              ? 'text-brand-blue dark:text-brand-blue-dark font-medium'
+              : 'text-zinc-600 dark:text-zinc-400'
+          "
           @click="scrollTo(h.slug, $event)"
         >
           {{ h.text }}
