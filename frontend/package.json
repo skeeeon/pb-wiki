@@ -10,8 +10,11 @@
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "md-editor-v3": "^5.0.0",
     "markdown-it": "^14.0.0",
+    "markdown-it-anchor": "^9.2.0",
+    "markdown-it-container": "^4.0.0",
+    "markdown-it-task-lists": "^2.1.1",
+    "md-editor-v3": "^5.0.0",
     "pinia": "^3.0.0",
     "pocketbase": "^0.26.0",
     "reka-ui": "^2.0.0",

@@ -5,8 +5,10 @@ import { RouterLink } from 'vue-router'
 import { useDoc } from '@/composables/useDoc'
 import { useDocumentTitle } from '@/composables/useDocumentTitle'
 import { useAuthStore } from '@/stores/auth'
+import { renderDoc } from '@/lib/markdown'
 import Breadcrumbs from '@/components/Breadcrumbs.vue'
 import MarkdownView from '@/components/MarkdownView.vue'
+import TocSidebar from '@/components/TocSidebar.vue'
 
 const props = defineProps<{ path: string }>()
 const path = toRef(props, 'path')
@@ -18,6 +20,9 @@ useDocumentTitle(() => doc.value?.title || null)
 
 const editTo = computed(() => `/edit/${path.value}`)
 const newChildTo = computed(() => `/new/${path.value ? path.value + '/' : ''}`)
+
+const rendered = computed(() => renderDoc(doc.value?.body ?? ''))
+const showToc = computed(() => rendered.value.showToc && rendered.value.headings.some((h) => h.level >= 2 && h.level <= 4))
 </script>
 
 <template>
@@ -52,7 +57,21 @@ const newChildTo = computed(() => `/new/${path.value ? path.value + '/' : ''}`)
           <RouterLink :to="newChildTo" class="underline">New child</RouterLink>
         </nav>
       </header>
-      <MarkdownView :body="doc.body" />
+
+      <!-- TOC rail shows on lg+ when the doc has eligible headings and hasn't
+           opted out. Grid keeps the article width stable whether TOC is shown
+           or not — when hidden, the article gets a single full-width column. -->
+      <div
+        class="grid gap-8"
+        :class="showToc ? 'lg:grid-cols-[minmax(0,1fr)_14rem]' : ''"
+      >
+        <MarkdownView :html="rendered.html" />
+        <aside v-if="showToc" class="hidden lg:block">
+          <div class="sticky top-6">
+            <TocSidebar :headings="rendered.headings" />
+          </div>
+        </aside>
+      </div>
     </article>
   </div>
 </template>

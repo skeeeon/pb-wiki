@@ -1,15 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import MarkdownIt from 'markdown-it'
-
-const props = defineProps<{ body: string }>()
-
-// html: false — never trust raw HTML in user-supplied markdown.
-// linkify   — auto-link bare URLs.
-// breaks    — single newlines don't become <br>; require blank lines.
-const md = new MarkdownIt({ html: false, linkify: true, breaks: false })
-
-const html = computed(() => md.render(props.body ?? ''))
+defineProps<{ html: string }>()
 </script>
 
 <template>
@@ -20,10 +10,10 @@ const html = computed(() => md.render(props.body ?? ''))
 /* Lightweight typography for rendered markdown. Plain CSS instead of @apply
    because Tailwind v4's @apply only works in the main entry stylesheet (or
    behind an @reference directive) — not in per-component scoped blocks. */
-.markdown-body h1 { font-size: 1.5rem; line-height: 2rem; font-weight: 600; margin: 1.5rem 0 0.75rem; }
-.markdown-body h2 { font-size: 1.25rem; line-height: 1.75rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
-.markdown-body h3 { font-size: 1.125rem; line-height: 1.75rem; font-weight: 600; margin: 1rem 0 0.5rem; }
-.markdown-body h4 { font-size: 1rem; line-height: 1.5rem; font-weight: 600; margin: 0.75rem 0 0.5rem; }
+.markdown-body h1 { font-size: 1.5rem; line-height: 2rem; font-weight: 600; margin: 1.5rem 0 0.75rem; scroll-margin-top: 5rem; }
+.markdown-body h2 { font-size: 1.25rem; line-height: 1.75rem; font-weight: 600; margin: 1.25rem 0 0.5rem; scroll-margin-top: 5rem; }
+.markdown-body h3 { font-size: 1.125rem; line-height: 1.75rem; font-weight: 600; margin: 1rem 0 0.5rem; scroll-margin-top: 5rem; }
+.markdown-body h4 { font-size: 1rem; line-height: 1.5rem; font-weight: 600; margin: 0.75rem 0 0.5rem; scroll-margin-top: 5rem; }
 .markdown-body p  { margin-bottom: 0.75rem; }
 .markdown-body ul { list-style: disc; padding-left: 1.5rem; margin-bottom: 0.75rem; }
 .markdown-body ol { list-style: decimal; padding-left: 1.5rem; margin-bottom: 0.75rem; }
@@ -38,9 +28,43 @@ const html = computed(() => md.render(props.body ?? ''))
 .markdown-body img { max-width: 100%; border-radius: 0.375rem; margin: 0.75rem 0; }
 .markdown-body hr  { margin: 1.5rem 0; border-color: rgb(228 228 231); }
 
+/* Heading anchors — '#' link injected by markdown-it-anchor, only visible
+   on hover so it doesn't compete with the heading text. */
+.markdown-body .heading-anchor {
+  text-decoration: none;
+  color: rgb(161 161 170);
+  margin-right: 0.4rem;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.markdown-body h1:hover .heading-anchor,
+.markdown-body h2:hover .heading-anchor,
+.markdown-body h3:hover .heading-anchor,
+.markdown-body h4:hover .heading-anchor { opacity: 1; }
+
+/* Task lists — checkbox aligned with first line, no bullet. */
+.markdown-body ul.contains-task-list { list-style: none; padding-left: 0.5rem; }
+.markdown-body li.task-list-item { display: flex; align-items: baseline; gap: 0.5rem; }
+.markdown-body li.task-list-item input[type="checkbox"] { transform: translateY(0.1rem); }
+
+/* Callouts — ::: note / tip / warning / danger ::: */
+.markdown-body .callout { border-left: 4px solid; padding: 0.75rem 1rem; border-radius: 0.375rem; margin-bottom: 0.75rem; background: rgb(244 244 245); }
+.markdown-body .callout > p:last-child { margin-bottom: 0; }
+.markdown-body .callout-title { font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; }
+.markdown-body .callout-note    { border-color: var(--color-brand-blue); }
+.markdown-body .callout-tip     { border-color: rgb(34 197 94); }
+.markdown-body .callout-warning { border-color: rgb(234 179 8); }
+.markdown-body .callout-danger  { border-color: rgb(220 38 38); }
+.markdown-body .callout-note    .callout-title { color: var(--color-brand-blue); }
+.markdown-body .callout-tip     .callout-title { color: rgb(22 163 74); }
+.markdown-body .callout-warning .callout-title { color: rgb(161 98 7); }
+.markdown-body .callout-danger  .callout-title { color: rgb(185 28 28); }
+
 .dark .markdown-body a { color: var(--color-brand-blue-dark); }
 .dark .markdown-body code, .dark .markdown-body pre { background: var(--color-brand-navy-200); }
 .dark .markdown-body blockquote { border-left-color: var(--color-brand-navy-100); color: rgb(212 212 216); }
 .dark .markdown-body th, .dark .markdown-body td { border-color: var(--color-brand-navy-100); }
 .dark .markdown-body hr { border-color: var(--color-brand-navy-200); }
+.dark .markdown-body .callout { background: var(--color-brand-navy-200); }
+.dark .markdown-body .heading-anchor { color: rgb(82 82 91); }
 </style>
