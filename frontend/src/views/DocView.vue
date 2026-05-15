@@ -96,9 +96,27 @@ watch(
       <header class="space-y-1">
         <div class="flex items-baseline justify-between gap-4 flex-wrap">
           <h1 class="text-4xl font-semibold">{{ doc.title || 'Untitled' }}</h1>
-          <nav v-if="auth.isEditor" class="flex items-center gap-3 text-sm">
-            <RouterLink :to="editTo" class="underline">Edit</RouterLink>
-            <RouterLink :to="newChildTo" class="underline">New child</RouterLink>
+          <nav v-if="auth.isEditor" class="flex items-center gap-2 text-sm">
+            <RouterLink
+              :to="editTo"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              Edit
+            </RouterLink>
+            <RouterLink
+              :to="newChildTo"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Add subpage
+            </RouterLink>
           </nav>
         </div>
         <p v-if="editedRelative" class="text-xs text-zinc-500">

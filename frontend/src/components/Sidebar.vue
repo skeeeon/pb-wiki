@@ -8,6 +8,14 @@ import { useConfigStore } from '@/stores/config'
 import { useTheme } from '@/composables/useTheme'
 import { useSearch, highlightMatch } from '@/composables/useSearch'
 import type { DocumentRecord } from '@/lib/types'
+import {
+  DropdownMenuRoot,
+  DropdownMenuTrigger,
+  DropdownMenuPortal,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from 'reka-ui'
 import { buildTree, type TreeNode } from './sidebarTree'
 import SidebarTreeItem from './SidebarTreeItem.vue'
 
@@ -188,14 +196,65 @@ function toggleExpand(path: string) {
     <!-- User menu — pinned to bottom, includes the theme toggle. -->
     <div class="shrink-0 border-t border-zinc-200 dark:border-zinc-800 p-3">
       <template v-if="auth.isAuthenticated">
-        <div class="flex items-center gap-2 mb-2">
-          <div class="w-8 h-8 rounded-full bg-brand-blue text-white text-sm font-medium flex items-center justify-center shrink-0">
-            {{ (auth.record?.email ?? '?').charAt(0).toUpperCase() }}
-          </div>
-          <div class="min-w-0 flex-1">
-            <div class="text-sm truncate">{{ auth.record?.email }}</div>
-            <div class="text-xs text-zinc-500">{{ auth.role }}</div>
-          </div>
+        <div class="flex items-center gap-2">
+          <DropdownMenuRoot>
+            <DropdownMenuTrigger
+              as="button"
+              type="button"
+              class="flex items-center gap-2 flex-1 min-w-0 p-1 -m-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue"
+              :aria-label="`Account menu for ${auth.record?.email}`"
+            >
+              <div class="w-8 h-8 rounded-full bg-brand-blue text-white text-sm font-medium flex items-center justify-center shrink-0">
+                {{ (auth.record?.email ?? '?').charAt(0).toUpperCase() }}
+              </div>
+              <div class="min-w-0 flex-1 text-left">
+                <div class="text-sm truncate">{{ auth.record?.email }}</div>
+                <div class="text-xs text-zinc-500">{{ auth.role }}</div>
+              </div>
+              <svg class="w-3.5 h-3.5 text-zinc-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </DropdownMenuTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuContent
+                side="top"
+                align="start"
+                :side-offset="6"
+                class="min-w-[12rem] rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1 shadow-md text-sm focus:outline-none z-[60]"
+              >
+                <DropdownMenuItem
+                  v-if="auth.isAdmin"
+                  as-child
+                >
+                  <RouterLink
+                    to="/admin"
+                    class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer outline-none data-[highlighted]:bg-zinc-100 dark:data-[highlighted]:bg-zinc-800"
+                  >
+                    <svg class="w-4 h-4 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
+                    Admin
+                  </RouterLink>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator
+                  v-if="auth.isAdmin"
+                  class="h-px my-1 bg-zinc-200 dark:bg-zinc-800"
+                />
+                <DropdownMenuItem
+                  class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer outline-none data-[highlighted]:bg-zinc-100 dark:data-[highlighted]:bg-zinc-800 text-red-600 dark:text-red-400"
+                  @select="auth.logout"
+                >
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenuPortal>
+          </DropdownMenuRoot>
           <button
             type="button"
             class="shrink-0 p-1.5 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -211,10 +270,6 @@ function toggleExpand(path: string) {
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
             </svg>
           </button>
-        </div>
-        <div class="flex items-center gap-3 text-xs">
-          <RouterLink v-if="auth.isAdmin" to="/admin" class="underline">Admin</RouterLink>
-          <button type="button" class="underline" @click="auth.logout">Sign out</button>
         </div>
       </template>
       <template v-else>
