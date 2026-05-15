@@ -23,7 +23,7 @@ defineProps<{ html: string }>()
 .markdown-body pre  { padding: 0.75rem; border-radius: 0.375rem; background: rgb(244 244 245); overflow-x: auto; margin-bottom: 0.75rem; }
 .markdown-body pre code { background: transparent; padding: 0; }
 .markdown-body blockquote { border-left: 4px solid rgb(212 212 216); padding-left: 1rem; font-style: italic; color: rgb(63 63 70); margin-bottom: 0.75rem; }
-.markdown-body table { border-collapse: collapse; margin-bottom: 0.75rem; }
+.markdown-body table { border-collapse: collapse; margin-bottom: 0.75rem; display: block; overflow-x: auto; max-width: 100%; }
 .markdown-body th, .markdown-body td { border: 1px solid rgb(212 212 216); padding: 0.25rem 0.5rem; text-align: left; }
 .markdown-body img { max-width: 100%; border-radius: 0.375rem; margin: 0.75rem 0; }
 .markdown-body hr  { margin: 1.5rem 0; border-color: rgb(228 228 231); }
@@ -47,24 +47,26 @@ defineProps<{ html: string }>()
 .markdown-body li.task-list-item { display: flex; align-items: baseline; gap: 0.5rem; }
 .markdown-body li.task-list-item input[type="checkbox"] { transform: translateY(0.1rem); }
 
-/* Callouts — ::: note / tip / warning / danger ::: */
-.markdown-body .callout { border-left: 4px solid; padding: 0.75rem 1rem; border-radius: 0.375rem; margin-bottom: 0.75rem; background: rgb(244 244 245); }
-.markdown-body .callout > p:last-child { margin-bottom: 0; }
-.markdown-body .callout-title { font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; }
-.markdown-body .callout-note    { border-color: var(--color-brand-blue); }
-.markdown-body .callout-tip     { border-color: rgb(34 197 94); }
-.markdown-body .callout-warning { border-color: rgb(234 179 8); }
-.markdown-body .callout-danger  { border-color: rgb(220 38 38); }
-.markdown-body .callout-note    .callout-title { color: var(--color-brand-blue); }
-.markdown-body .callout-tip     .callout-title { color: rgb(22 163 74); }
-.markdown-body .callout-warning .callout-title { color: rgb(161 98 7); }
-.markdown-body .callout-danger  .callout-title { color: rgb(185 28 28); }
+/* Callouts — ::: note / tip / warning / danger ::: — unscoped so they
+   also render correctly inside the editor preview pane (.md-editor-preview),
+   not just inside .markdown-body. */
+.callout { border-left: 4px solid; padding: 0.75rem 1rem; border-radius: 0.375rem; margin-bottom: 0.75rem; background: rgb(244 244 245); }
+.callout > p:last-child { margin-bottom: 0; }
+.callout-title { font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; }
+.callout-note    { border-color: var(--color-brand-blue); }
+.callout-tip     { border-color: rgb(34 197 94); }
+.callout-warning { border-color: rgb(234 179 8); }
+.callout-danger  { border-color: rgb(220 38 38); }
+.callout-note    .callout-title { color: var(--color-brand-blue); }
+.callout-tip     .callout-title { color: rgb(22 163 74); }
+.callout-warning .callout-title { color: rgb(161 98 7); }
+.callout-danger  .callout-title { color: rgb(185 28 28); }
 
 .dark .markdown-body a { color: var(--color-brand-blue-dark); }
 .dark .markdown-body code, .dark .markdown-body pre { background: var(--color-brand-navy-200); }
 .dark .markdown-body blockquote { border-left-color: var(--color-brand-navy-100); color: rgb(212 212 216); }
 .dark .markdown-body th, .dark .markdown-body td { border-color: var(--color-brand-navy-100); }
 .dark .markdown-body hr { border-color: var(--color-brand-navy-200); }
-.dark .markdown-body .callout { background: var(--color-brand-navy-200); }
+.dark .callout { background: var(--color-brand-navy-200); }
 .dark .markdown-body .heading-anchor { color: rgb(82 82 91); }
 </style>

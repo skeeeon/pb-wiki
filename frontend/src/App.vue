@@ -74,7 +74,11 @@ onMounted(() => {
       <Sidebar />
     </aside>
 
-    <main class="md:ml-80 p-6 pt-16 md:pt-6 overflow-x-auto">
+    <!-- No overflow-x on <main>: setting it would make main a scroll
+         container, which scopes descendant `position: sticky` (e.g. the
+         TOC rail in DocView) to main instead of the viewport. Wide
+         elements (pre, table) handle their own horizontal overflow. -->
+    <main class="md:ml-80 p-6 pt-16 md:pt-6">
       <RouterView />
     </main>
   </div>

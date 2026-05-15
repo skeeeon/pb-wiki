@@ -45,16 +45,24 @@ md.use(anchor, {
 
 md.use(taskLists, { enabled: true, label: true })
 
-for (const name of ['note', 'tip', 'warning', 'danger'] as const) {
-  md.use(container, name, {
-    render(tokens: Token[], idx: number) {
-      if (tokens[idx].nesting === 1) {
-        return `<div class="callout callout-${name}"><div class="callout-title">${name}</div>\n`
-      }
-      return `</div>\n`
-    },
-  })
+// Installs our ::: note / tip / warning / danger ::: callout containers.
+// Exported so the editor preview (md-editor-v3) can use the same syntax via
+// its `markdownItConfig` hook — it ships its own !!! admonition, heading
+// IDs, and task lists, but not our :::-style callouts.
+export function applyCalloutContainers(md: MarkdownIt) {
+  for (const name of ['note', 'tip', 'warning', 'danger'] as const) {
+    md.use(container, name, {
+      render(tokens: Token[], idx: number) {
+        if (tokens[idx].nesting === 1) {
+          return `<div class="callout callout-${name}"><div class="callout-title">${name}</div>\n`
+        }
+        return `</div>\n`
+      },
+    })
+  }
 }
+
+applyCalloutContainers(md)
 
 // `<!-- toc: false -->` or `<!-- no-toc -->` at the top of a doc suppresses
 // the auto-sidebar TOC. Stripped before rendering so it doesn't appear as text.

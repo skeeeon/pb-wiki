@@ -1,10 +1,21 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import { config as mdEditorConfig } from 'md-editor-v3'
 
 import './style.css'
 import App from './App.vue'
 import router from './router'
 import { useConfigStore } from './stores/config'
+import { applyCalloutContainers } from './lib/markdown'
+
+// Teach md-editor-v3's preview pane the same ::: callout syntax our renderer
+// supports. The editor already ships its own anchors, task lists, and
+// !!! admonitions; we only add what's missing.
+mdEditorConfig({
+  markdownItConfig(md) {
+    applyCalloutContainers(md)
+  },
+})
 // Side-effect import: initializes the theme on `<html>` before the first
 // render so there's no FOUC on first paint.
 import './composables/useTheme'
