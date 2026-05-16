@@ -1,20 +1,27 @@
-// Package importer provides a one-shot CLI command for migrating a wiki-go
-// (leomoon-studios) data directory into pb-wiki's documents collection.
+// Package importer provides a one-shot CLI command for importing a directory
+// of markdown files (with YAML frontmatter) into pb-wiki's documents
+// collection. This is the input side of a git-ops style workflow: author
+// content as plain markdown files in a git repo, then run `pb-wiki import` to
+// upsert them into the wiki.
 //
-// Mapping:
+// File format:
 //
-//	<data-dir>/pages/home/document.md      → path = ""        (homepage)
-//	<data-dir>/documents/<slug>/document.md → path = "<slug>"  (directory chain joined by "/")
+//	---
+//	path: getting-started/install     # required; use "" for the homepage
+//	title: Installation Guide         # optional; falls back to the first H1
+//	---
+//	# Installation Guide
+//	...body...
 //
-// The first level-1 heading is extracted into `title` and stripped from the
-// stored body, since pb-wiki renders the title separately and including it in
-// body would produce a duplicate header.
+// Files without frontmatter, or with frontmatter missing `path`, are skipped
+// (logged, not fatal) so a partial input tree doesn't abort the whole run.
 //
-// The command is idempotent: re-running upserts on `path`, so a partial import
-// can be safely retried.
+// The command is idempotent: records are matched by `path`, so re-running
+// updates rather than duplicates.
 package importer
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -26,24 +33,27 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 // New returns the `pb-wiki import` cobra command bound to the given app.
 func New(app *pocketbase.PocketBase) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "import <wiki-go-data-dir>",
-		Short: "Import wiki-go documents into pb-wiki",
-		Long: `Walks <wiki-go-data-dir>/pages/home/document.md and
-<wiki-go-data-dir>/documents/**/document.md and upserts a record into the
-documents collection for each one.
+		Use:   "import <markdown-dir>",
+		Short: "Import markdown documents (with YAML frontmatter) into pb-wiki",
+		Long: `Recursively walks <markdown-dir> for .md files. Each file must begin with
+YAML frontmatter declaring a "path" (use path: "" for the homepage) and may
+optionally declare a "title":
 
-Mapping:
-  pages/home/document.md         → path = ""
-  documents/A/document.md        → path = "A"
-  documents/A/B/document.md      → path = "A/B"
+  ---
+  path: getting-started/install
+  title: Installation Guide
+  ---
+  # Installation Guide
+  ...
 
-The first H1 in the markdown becomes the document title; everything below it
-becomes the body. Re-running is safe — records are matched by path.`,
+If "title" is omitted, the first H1 in the body is used and stripped. Records
+are matched by path, so re-running is safe.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return run(app, args[0])
@@ -52,64 +62,126 @@ becomes the body. Re-running is safe — records are matched by path.`,
 	return cmd
 }
 
-func run(app *pocketbase.PocketBase, dataDir string) error {
+type frontmatter struct {
+	// Pointer so we can distinguish "field absent" from "path: \"\"" (homepage).
+	Path  *string `yaml:"path"`
+	Title string  `yaml:"title"`
+}
+
+func run(app *pocketbase.PocketBase, root string) error {
 	docs, err := app.FindCollectionByNameOrId("documents")
 	if err != nil {
 		return fmt.Errorf("find documents collection: %w", err)
 	}
 
-	var created, updated int
+	var created, updated, skipped int
+	// Detect duplicate paths within the input tree before we let the DB's
+	// unique index reject the second one with a less helpful error.
+	seen := map[string]string{}
 
-	// Homepage.
-	homePath := filepath.Join(dataDir, "pages", "home", "document.md")
-	if _, err := os.Stat(homePath); err == nil {
-		isUpdate, err := upsert(app, docs, "", homePath)
-		if err != nil {
-			return fmt.Errorf("import home: %w", err)
-		}
-		report("", isUpdate)
-		bump(&created, &updated, isUpdate)
-	} else if !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("stat home: %w", err)
-	}
-
-	// documents/**/document.md
-	docsRoot := filepath.Join(dataDir, "documents")
-	walkErr := filepath.WalkDir(docsRoot, func(p string, d fs.DirEntry, walkErr error) error {
+	walkErr := filepath.WalkDir(root, func(p string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
-		if d.IsDir() || filepath.Base(p) != "document.md" {
+		if d.IsDir() || !strings.EqualFold(filepath.Ext(p), ".md") {
 			return nil
 		}
-		rel, err := filepath.Rel(docsRoot, filepath.Dir(p))
+		content, err := os.ReadFile(p)
 		if err != nil {
-			return err
+			return fmt.Errorf("read %s: %w", p, err)
 		}
-		slug := filepath.ToSlash(rel)
-		isUpdate, err := upsert(app, docs, slug, p)
+		fm, body, err := parseFrontmatter(content)
 		if err != nil {
-			return fmt.Errorf("import %q: %w", slug, err)
+			fmt.Printf("  skip   %s: %v\n", p, err)
+			skipped++
+			return nil
+		}
+		if fm.Path == nil {
+			fmt.Printf("  skip   %s: missing required `path` in frontmatter\n", p)
+			skipped++
+			return nil
+		}
+		slug := *fm.Path
+		if prev, dup := seen[slug]; dup {
+			return fmt.Errorf("duplicate path %q in input: %s and %s", slug, prev, p)
+		}
+		seen[slug] = p
+
+		title := fm.Title
+		bodyStr := string(body)
+		if title == "" {
+			title, bodyStr = splitTitle(bodyStr)
+		}
+
+		isUpdate, err := upsert(app, docs, slug, title, bodyStr)
+		if err != nil {
+			return fmt.Errorf("upsert %q (from %s): %w", slug, p, err)
 		}
 		report(slug, isUpdate)
-		bump(&created, &updated, isUpdate)
+		if isUpdate {
+			updated++
+		} else {
+			created++
+		}
 		return nil
 	})
 	if walkErr != nil && !errors.Is(walkErr, fs.ErrNotExist) {
 		return walkErr
 	}
 
-	fmt.Printf("\nDone. %d created, %d updated.\n", created, updated)
+	fmt.Printf("\nDone. %d created, %d updated, %d skipped.\n", created, updated, skipped)
 	return nil
 }
 
-func upsert(app core.App, coll *core.Collection, slug, mdPath string) (bool, error) {
-	content, err := os.ReadFile(mdPath)
-	if err != nil {
-		return false, err
-	}
-	title, body := splitTitle(string(content))
+// parseFrontmatter pulls a YAML frontmatter block (delimited by `---` lines)
+// off the front of a markdown document and returns the parsed metadata plus
+// the remaining body. A file without frontmatter is fine: returns a zero
+// frontmatter and the original bytes. An opened-but-unclosed block is an
+// error so authors notice typos rather than silently importing the whole file
+// body as YAML.
+func parseFrontmatter(b []byte) (frontmatter, []byte, error) {
+	var fm frontmatter
+	b = bytes.TrimPrefix(b, []byte{0xEF, 0xBB, 0xBF})
 
+	if !bytes.HasPrefix(b, []byte("---\n")) && !bytes.HasPrefix(b, []byte("---\r\n")) {
+		return fm, b, nil
+	}
+
+	// Skip past the opening delimiter line.
+	nl := bytes.IndexByte(b, '\n')
+	if nl < 0 {
+		return fm, nil, errors.New("frontmatter opened but not closed")
+	}
+	rest := b[nl+1:]
+
+	// Walk lines looking for a closing line containing only "---".
+	off := 0
+	for off <= len(rest) {
+		nlIdx := bytes.IndexByte(rest[off:], '\n')
+		var line []byte
+		var lineEnd int
+		if nlIdx < 0 {
+			line = rest[off:]
+			lineEnd = len(rest)
+		} else {
+			line = rest[off : off+nlIdx]
+			lineEnd = off + nlIdx + 1
+		}
+		if bytes.Equal(bytes.TrimRight(line, "\r"), []byte("---")) {
+			if err := yaml.Unmarshal(rest[:off], &fm); err != nil {
+				return frontmatter{}, nil, fmt.Errorf("parse frontmatter yaml: %w", err)
+			}
+			return fm, rest[lineEnd:], nil
+		}
+		if nlIdx < 0 {
+			break
+		}
+		off = lineEnd
+	}
+	return fm, nil, errors.New("frontmatter opened but not closed")
+}
+
+func upsert(app core.App, coll *core.Collection, slug, title, body string) (bool, error) {
 	// dbx.HashExp goes directly to parameterized SQL — we deliberately avoid
 	// FindFirstRecordByFilter here because PB's filter parser JSON-encodes
 	// empty-string params into a literal `""` value (filter.go:71-77 in
@@ -151,8 +223,6 @@ func splitTitle(md string) (string, string) {
 	title := strings.TrimSpace(strings.TrimPrefix(first, "# "))
 	rest := ""
 	if len(lines) > 1 {
-		// Skip a single blank line that conventionally follows the H1 so the
-		// body doesn't start with awkward leading whitespace.
 		rest = strings.TrimPrefix(lines[1], "\n")
 	}
 	return title, rest
@@ -168,12 +238,4 @@ func report(slug string, isUpdate bool) {
 		display = "(home)"
 	}
 	fmt.Printf("  %s  %s\n", verb, display)
-}
-
-func bump(created, updated *int, isUpdate bool) {
-	if isUpdate {
-		*updated++
-	} else {
-		*created++
-	}
 }

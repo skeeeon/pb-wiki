@@ -53,6 +53,27 @@ go build -o pb-wiki .
 
 The Vue build under `frontend/dist/` is embedded into the binary; redistributing the binary alone is enough to serve the full app.
 
+## Importing content
+
+`pb-wiki import <markdown-dir>` recursively imports a directory of markdown files into the `documents` collection. This is the input side of a git-ops authoring workflow: keep your content in a git repo as plain markdown and re-run the importer to upsert into the wiki. Imports are one-way — the wiki does not write back to disk.
+
+Each file must begin with YAML frontmatter declaring `path` (use `path: ""` for the homepage); `title` is optional and falls back to the first H1 in the body.
+
+```markdown
+---
+path: getting-started/install
+title: Installation Guide
+---
+# Installation Guide
+...
+```
+
+Records are matched by `path`, so re-running the import updates existing documents in place. Files without a `path` are logged and skipped; duplicate paths within the input tree are reported as an error before any writes happen.
+
+```bash
+go run . import ./wiki        # or ./pb-wiki import ./wiki for the built binary
+```
+
 ## Schema and migrations
 
 Migrations live in [`migrations/`](./migrations/) and self-register via `init()`. They run automatically on first boot (`Automigrate` is enabled when running via `go run`, and explicitly through `pb-wiki migrate up` for prod binaries).
@@ -112,6 +133,7 @@ go test ./...
 ```
 
 - `internal/access` — covers glob translation, first-match precedence, admin bypass, group overlap, fail-closed unknown access levels, and the `require_login` lockdown flag.
+- `internal/importer` — covers YAML frontmatter parsing (BOM, CRLF, unterminated blocks, invalid YAML) and the H1 title fallback.
 
 ## License
 

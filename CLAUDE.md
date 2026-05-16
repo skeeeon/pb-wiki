@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 go run . serve            # run PocketBase on :8090; Automigrate is ON in `go run` mode
 go run . migrate up       # explicit migration (prod binaries don't auto-migrate)
 go run . superuser upsert <email> <password>   # seed a PB superuser
-go run . import <wiki-go-data-dir>             # one-shot wiki-go importer
+go run . import <markdown-dir>                 # import markdown files with YAML frontmatter (see internal/importer)
 go test ./...             # all unit tests
 go test ./internal/access -run TestCanAccess   # single test
 ```
