@@ -88,12 +88,31 @@ function toggleExpand(path: string) {
 
 <template>
   <div class="flex flex-col h-full">
-    <!-- Brand block — stays pinned at the top while the tree scrolls. -->
-    <div class="shrink-0 p-4 space-y-3">
-      <RouterLink to="/" class="block" :aria-label="config.config?.title || 'pb-wiki'">
-        <img src="/logo.svg" :alt="config.config?.title || 'pb-wiki'" class="h-12 block dark:hidden" />
-        <img src="/logo-dark.svg" :alt="config.config?.title || 'pb-wiki'" class="h-12 hidden dark:block" />
-      </RouterLink>
+    <!-- Brand block — stays pinned at the top while the tree scrolls. Top
+         padding extends for iOS PWA safe-area so the logo isn't tucked under
+         the notch when the drawer covers the whole screen. -->
+    <div class="shrink-0 px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] space-y-3">
+      <div class="flex items-center justify-between gap-2">
+        <RouterLink to="/" class="block" :aria-label="config.config?.title || 'pb-wiki'">
+          <img src="/logo.svg" :alt="config.config?.title || 'pb-wiki'" class="h-12 block dark:hidden" />
+          <img src="/logo-dark.svg" :alt="config.config?.title || 'pb-wiki'" class="h-12 hidden dark:block" />
+        </RouterLink>
+        <button
+          type="button"
+          class="shrink-0 p-1.5 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          :title="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+          :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+          @click="toggleTheme"
+        >
+          <svg v-if="theme === 'dark'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+          </svg>
+          <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        </button>
+      </div>
       <h1 v-if="config.config?.title" class="text-base font-semibold leading-tight">
         {{ config.config.title }}
       </h1>
@@ -194,16 +213,17 @@ function toggleExpand(path: string) {
       </template>
     </div>
 
-    <!-- User menu — pinned to bottom, includes the theme toggle. -->
-    <div class="shrink-0 border-t border-zinc-200 dark:border-zinc-800 p-3">
+    <!-- User menu — pinned to bottom. Bottom padding extends for iOS PWA
+         safe-area so the menu trigger isn't crowded against the home
+         indicator. Theme toggle lives in the brand block at the top. -->
+    <div class="shrink-0 border-t border-zinc-200 dark:border-zinc-800 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
       <template v-if="auth.isAuthenticated">
-        <div class="flex items-center gap-2">
-          <DropdownMenuRoot>
-            <DropdownMenuTrigger
-              as="button"
-              type="button"
-              class="flex items-center gap-2 flex-1 min-w-0 p-1 -m-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue"
-              :aria-label="`Account menu for ${auth.record?.email}`"
+        <DropdownMenuRoot>
+          <DropdownMenuTrigger
+            as="button"
+            type="button"
+            class="flex items-center gap-2 w-full p-1 -m-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue"
+            :aria-label="`Account menu for ${auth.record?.email}`"
             >
               <div class="w-8 h-8 rounded-full bg-brand-blue text-white text-sm font-medium flex items-center justify-center shrink-0 overflow-hidden">
                 <img
@@ -272,48 +292,15 @@ function toggleExpand(path: string) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenuPortal>
-          </DropdownMenuRoot>
-          <button
-            type="button"
-            class="shrink-0 p-1.5 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            :title="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
-            :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
-            @click="toggleTheme"
-          >
-            <svg v-if="theme === 'dark'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-            </svg>
-            <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
-          </button>
-        </div>
+        </DropdownMenuRoot>
       </template>
       <template v-else>
-        <div class="flex items-center gap-2">
-          <RouterLink
-            to="/login"
-            class="flex-1 text-center rounded-md bg-brand-red hover:bg-brand-red-hover text-white text-sm font-medium px-3 py-1.5"
-          >
-            Sign in
-          </RouterLink>
-          <button
-            type="button"
-            class="shrink-0 p-1.5 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            :title="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
-            :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
-            @click="toggleTheme"
-          >
-            <svg v-if="theme === 'dark'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-            </svg>
-            <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
-          </button>
-        </div>
+        <RouterLink
+          to="/login"
+          class="block text-center rounded-md bg-brand-red hover:bg-brand-red-hover text-white text-sm font-medium px-3 py-1.5"
+        >
+          Sign in
+        </RouterLink>
       </template>
     </div>
   </div>
