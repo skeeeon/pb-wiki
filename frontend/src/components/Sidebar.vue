@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { RouterLink, useRoute } from 'vue-router'
 
-import { pb } from '@/lib/pb'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
+import { useDocsStore } from '@/stores/docs'
 import { useTheme } from '@/composables/useTheme'
 import { useSearch, highlightMatch } from '@/composables/useSearch'
-import type { DocumentRecord } from '@/lib/types'
 import {
   DropdownMenuRoot,
   DropdownMenuTrigger,
@@ -21,28 +21,12 @@ import SidebarTreeItem from './SidebarTreeItem.vue'
 
 const auth = useAuthStore()
 const config = useConfigStore()
+const docsStore = useDocsStore()
+const { list: docs, loading, error } = storeToRefs(docsStore)
 const route = useRoute()
 const { theme, toggle: toggleTheme } = useTheme()
 
-const docs = ref<DocumentRecord[]>([])
-const loading = ref(true)
-const error = ref('')
-
-async function load() {
-  loading.value = true
-  error.value = ''
-  try {
-    docs.value = await pb.collection('documents').getFullList<DocumentRecord>({
-      sort: '+path',
-      fields: 'id,path,title',
-    })
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err)
-  } finally {
-    loading.value = false
-  }
-}
-onMounted(load)
+onMounted(() => docsStore.load())
 
 const tree = computed<TreeNode[]>(() => buildTree(docs.value))
 const hasHome = computed(() => docs.value.some((d) => d.path === ''))
@@ -188,7 +172,9 @@ function toggleExpand(path: string) {
           />
         </ul>
         <p v-else-if="loading" class="text-sm text-zinc-500 px-2 py-1">Loading…</p>
-        <p v-else-if="error" class="text-sm text-red-600 dark:text-red-400 px-2 py-1">{{ error }}</p>
+        <p v-else-if="error" class="text-sm text-red-600 dark:text-red-400 px-2 py-1">
+          {{ error instanceof Error ? error.message : String(error) }}
+        </p>
         <p v-else class="text-sm text-zinc-500 px-2 py-1">No pages yet.</p>
       </template>
     </div>

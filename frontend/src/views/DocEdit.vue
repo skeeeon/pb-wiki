@@ -18,12 +18,14 @@ import {
 import { pb } from '@/lib/pb'
 import { useDoc } from '@/composables/useDoc'
 import { useAuthStore } from '@/stores/auth'
+import { useDocsStore } from '@/stores/docs'
 import { useTheme } from '@/composables/useTheme'
 
 const props = defineProps<{ path: string; mode: 'edit' | 'new' }>()
 const path = toRef(props, 'path')
 const router = useRouter()
 const auth = useAuthStore()
+const docsStore = useDocsStore()
 const { theme } = useTheme()
 
 // In 'new' mode we never fetch — passing a sentinel path that won't exist so
@@ -100,6 +102,7 @@ async function save() {
     } else {
       await pb.collection('documents').create(data)
     }
+    await docsStore.reload()
     router.push(`/doc/${data.path}`)
   } catch (err) {
     errorMsg.value = err instanceof Error ? err.message : String(err)
@@ -113,6 +116,7 @@ async function deleteDoc() {
   deleting.value = true
   try {
     await pb.collection('documents').delete(doc.value.id)
+    await docsStore.reload()
     router.push('/')
   } catch (err) {
     errorMsg.value = err instanceof Error ? err.message : String(err)
