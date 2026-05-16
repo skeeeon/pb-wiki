@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
@@ -24,7 +24,13 @@ const config = useConfigStore()
 const docsStore = useDocsStore()
 const { list: docs, loading, error } = storeToRefs(docsStore)
 const route = useRoute()
+const router = useRouter()
 const { theme, toggle: toggleTheme } = useTheme()
+
+async function signOut() {
+  auth.logout()
+  await router.push('/')
+}
 
 onMounted(() => docsStore.load())
 
@@ -229,7 +235,7 @@ function toggleExpand(path: string) {
                 />
                 <DropdownMenuItem
                   class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer outline-none data-[highlighted]:bg-zinc-100 dark:data-[highlighted]:bg-zinc-800 text-red-600 dark:text-red-400"
-                  @select="auth.logout"
+                  @select="signOut"
                 >
                   <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
