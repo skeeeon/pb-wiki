@@ -196,7 +196,7 @@ watch(
           as="button"
           type="button"
           aria-label="On this page"
-          class="lg:hidden fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40 w-12 h-12 rounded-full bg-brand-blue text-white shadow-lg flex items-center justify-center hover:bg-brand-blue-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue"
+          class="lg:hidden fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40 w-12 h-12 rounded-full bg-white/90 dark:bg-zinc-900/80 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 text-brand-blue dark:text-brand-blue-dark shadow-lg shadow-brand-blue/10 dark:shadow-black/40 flex items-center justify-center hover:border-brand-blue/40 dark:hover:border-brand-blue-dark/40 hover:bg-white dark:hover:bg-zinc-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue"
         >
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="8" y1="6" x2="21" y2="6" />
