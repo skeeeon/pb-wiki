@@ -35,6 +35,23 @@ const currentAvatarUrl = computed(() => {
   return pb.files.getURL(r, r.avatar)
 })
 
+const initial = computed(() => (auth.record?.email ?? '?').charAt(0).toUpperCase())
+const displayName = computed(() => auth.record?.name || auth.record?.email || 'Unknown user')
+
+const dirty = computed(() => {
+  const r = auth.record
+  if (!r) return false
+  if ((name.value ?? '') !== (r.name ?? '')) return true
+  if (avatarFile.value) return true
+  if (clearAvatar.value && r.avatar) return true
+  return false
+})
+
+// Clear the post-save confirmation as soon as the form is touched again.
+watch(dirty, (isDirty) => {
+  if (isDirty) successMsg.value = ''
+})
+
 function onAvatarChange(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0] ?? null
@@ -57,8 +74,6 @@ async function save() {
   errorMsg.value = ''
   successMsg.value = ''
   try {
-    // FormData is needed whenever a file is involved; we use it for the
-    // clear-avatar case too so the request shape is consistent.
     const fd = new FormData()
     fd.append('name', name.value)
     if (avatarFile.value) {
@@ -70,7 +85,7 @@ async function save() {
     // Refresh the cached auth record so the sidebar/header pick up the new
     // name and avatar without a page reload.
     await pb.collection('users').authRefresh<UserRecord>()
-    successMsg.value = 'Saved.'
+    successMsg.value = 'Profile updated.'
   } catch (err) {
     errorMsg.value = err instanceof Error ? err.message : String(err)
   } finally {
@@ -80,82 +95,124 @@ async function save() {
 </script>
 
 <template>
-  <div class="max-w-xl mx-auto space-y-6">
+  <div class="max-w-2xl mx-auto space-y-6">
     <header>
-      <h1 class="text-lg font-semibold">Account</h1>
-      <p class="text-sm text-zinc-500">Update your profile.</p>
+      <h1 class="text-xl font-semibold">Account</h1>
+      <p class="text-sm text-zinc-500">Manage your profile and how others see you.</p>
     </header>
 
-    <form class="space-y-4" @submit.prevent="save">
-      <div class="space-y-1">
-        <span class="block text-sm text-zinc-700 dark:text-zinc-300">Email</span>
-        <p class="text-sm font-mono text-zinc-900 dark:text-zinc-100">
-          {{ auth.record?.email }}
-        </p>
-        <p class="text-xs text-zinc-500">
-          Email changes require verification and aren't supported here yet.
-        </p>
-      </div>
-
-      <label class="block text-sm">
-        <span class="text-zinc-700 dark:text-zinc-300">Name</span>
-        <input
-          v-model="name"
-          type="text"
-          autocomplete="name"
-          class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm"
-        />
-      </label>
-
-      <div class="space-y-2">
-        <span class="block text-sm text-zinc-700 dark:text-zinc-300">Avatar</span>
-        <div class="flex items-center gap-4">
-          <div
-            class="w-16 h-16 rounded-full bg-brand-blue text-white text-2xl font-medium flex items-center justify-center shrink-0 overflow-hidden"
-          >
-            <img
-              v-if="avatarPreview"
-              :src="avatarPreview"
-              :alt="auth.record?.email ?? ''"
-              class="w-full h-full object-cover"
-            />
-            <img
-              v-else-if="currentAvatarUrl"
-              :src="currentAvatarUrl"
-              :alt="auth.record?.email ?? ''"
-              class="w-full h-full object-cover"
-            />
-            <span v-else>{{ (auth.record?.email ?? '?').charAt(0).toUpperCase() }}</span>
-          </div>
-          <div class="flex flex-col gap-2">
-            <input
-              type="file"
-              accept="image/*"
-              class="text-sm"
-              @change="onAvatarChange"
-            />
-            <button
-              v-if="currentAvatarUrl || avatarPreview"
-              type="button"
-              class="text-xs text-red-600 dark:text-red-400 hover:underline self-start"
-              @click="removeAvatar"
-            >
-              Remove avatar
-            </button>
-          </div>
+    <form
+      class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden"
+      @submit.prevent="save"
+    >
+      <!-- Identity strip: large avatar, display name, email, role chip,
+           plus the avatar-edit controls. Visually distinct so the user gets
+           an at-a-glance preview of how they appear elsewhere in the app. -->
+      <section class="flex items-start gap-5 p-6 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200 dark:border-zinc-800">
+        <div
+          class="w-20 h-20 rounded-full bg-brand-blue text-white text-3xl font-medium
+                 flex items-center justify-center shrink-0 overflow-hidden
+                 ring-2 ring-white dark:ring-zinc-900"
+        >
+          <img
+            v-if="avatarPreview"
+            :src="avatarPreview"
+            :alt="displayName"
+            class="w-full h-full object-cover"
+          />
+          <img
+            v-else-if="currentAvatarUrl"
+            :src="currentAvatarUrl"
+            :alt="displayName"
+            class="w-full h-full object-cover"
+          />
+          <span v-else>{{ initial }}</span>
         </div>
-      </div>
 
-      <div class="flex items-center gap-3 pt-2">
+        <div class="min-w-0 flex-1 space-y-1.5">
+          <p class="text-base font-medium truncate">{{ displayName }}</p>
+          <p class="text-xs text-zinc-500 font-mono truncate">{{ auth.record?.email }}</p>
+          <span
+            v-if="auth.role"
+            class="inline-flex items-center rounded-full bg-brand-blue/10 text-brand-blue dark:text-brand-blue-dark text-xs font-medium px-2 py-0.5"
+          >
+            {{ auth.role }}
+          </span>
+        </div>
+
+        <div class="flex flex-col items-end gap-1.5 shrink-0">
+          <label
+            for="avatar-input"
+            class="rounded-md border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-sm font-medium
+                   cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 bg-white dark:bg-zinc-900"
+          >
+            Change…
+          </label>
+          <input
+            id="avatar-input"
+            type="file"
+            accept="image/*"
+            class="sr-only"
+            @change="onAvatarChange"
+          />
+          <button
+            v-if="currentAvatarUrl || avatarPreview"
+            type="button"
+            class="text-xs text-red-600 dark:text-red-400 hover:underline"
+            @click="removeAvatar"
+          >
+            Remove avatar
+          </button>
+        </div>
+      </section>
+
+      <!-- Editable fields. -->
+      <section class="p-6 space-y-5">
+        <label class="block text-sm">
+          <span class="text-zinc-700 dark:text-zinc-300 font-medium">Display name</span>
+          <input
+            v-model="name"
+            type="text"
+            autocomplete="name"
+            placeholder="Your name"
+            class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm
+                   focus:outline-none focus:border-brand-blue"
+          />
+          <span class="mt-1.5 block text-xs text-zinc-500">
+            Shown in the sidebar and beside pages you've edited.
+          </span>
+        </label>
+
+        <div class="space-y-1">
+          <span class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Email</span>
+          <p class="text-sm font-mono text-zinc-900 dark:text-zinc-100 truncate">
+            {{ auth.record?.email }}
+          </p>
+          <p class="text-xs text-zinc-500">
+            Email changes require verification and aren't supported here yet.
+          </p>
+        </div>
+      </section>
+
+      <!-- Footer actions — sit on a tinted strip so the primary action is
+           easy to find without scanning the form. -->
+      <div
+        class="flex items-center justify-between gap-3 px-6 py-4
+               bg-zinc-50 dark:bg-zinc-950/40 border-t border-zinc-200 dark:border-zinc-800"
+      >
+        <p class="text-sm min-h-[1.25rem]">
+          <span v-if="successMsg" class="text-green-600 dark:text-green-400">{{ successMsg }}</span>
+          <span v-else-if="errorMsg" class="text-red-600 dark:text-red-400">{{ errorMsg }}</span>
+          <span v-else-if="dirty" class="text-zinc-500">Unsaved changes</span>
+        </p>
         <button
           type="submit"
-          :disabled="saving"
-          class="rounded-md bg-brand-red hover:bg-brand-red-hover text-white px-3 py-1.5 text-sm font-medium disabled:opacity-60"
+          :disabled="saving || !dirty"
+          class="rounded-md bg-brand-red hover:bg-brand-red-hover text-white px-4 py-1.5 text-sm font-medium
+                 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {{ saving ? 'Saving…' : 'Save changes' }}
         </button>
-        <p v-if="successMsg" class="text-sm text-green-600 dark:text-green-400">{{ successMsg }}</p>
-        <p v-if="errorMsg" class="text-sm text-red-600 dark:text-red-400">{{ errorMsg }}</p>
       </div>
     </form>
   </div>
