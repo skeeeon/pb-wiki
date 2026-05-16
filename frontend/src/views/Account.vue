@@ -15,6 +15,13 @@ const saving = ref(false)
 const errorMsg = ref('')
 const successMsg = ref('')
 
+const oldPassword = ref('')
+const newPassword = ref('')
+const newPasswordConfirm = ref('')
+const changingPassword = ref(false)
+const pwErrorMsg = ref('')
+const pwSuccessMsg = ref('')
+
 // Re-seed the form when the underlying record arrives (e.g. on first mount
 // before pb.authStore.onChange has fired) or when the user switches accounts.
 watch(
@@ -92,6 +99,46 @@ async function save() {
     saving.value = false
   }
 }
+
+const passwordFormValid = computed(
+  () =>
+    oldPassword.value.length > 0 &&
+    newPassword.value.length > 0 &&
+    newPassword.value === newPasswordConfirm.value,
+)
+
+async function changePassword() {
+  if (!auth.record || changingPassword.value || !passwordFormValid.value) return
+  changingPassword.value = true
+  pwErrorMsg.value = ''
+  pwSuccessMsg.value = ''
+  try {
+    await pb.collection('users').update(auth.record.id, {
+      oldPassword: oldPassword.value,
+      password: newPassword.value,
+      passwordConfirm: newPasswordConfirm.value,
+    })
+    // PocketBase rotates the user's tokenKey on password change, which
+    // invalidates the current auth token. Re-authenticate with the new
+    // password so the user stays signed in without bouncing to /login.
+    const email = auth.record.email
+    const fresh = newPassword.value
+    oldPassword.value = ''
+    newPassword.value = ''
+    newPasswordConfirm.value = ''
+    await pb.collection('users').authWithPassword<UserRecord>(email, fresh)
+    pwSuccessMsg.value = 'Password updated.'
+  } catch (err) {
+    pwErrorMsg.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    changingPassword.value = false
+  }
+}
+
+// Clear the password-change confirmation as soon as the fields are touched again.
+watch([oldPassword, newPassword, newPasswordConfirm], () => {
+  if (pwSuccessMsg.value) pwSuccessMsg.value = ''
+})
 </script>
 
 <template>
@@ -212,6 +259,88 @@ async function save() {
                  disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {{ saving ? 'Saving…' : 'Save changes' }}
+        </button>
+      </div>
+    </form>
+
+    <form
+      class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden"
+      autocomplete="off"
+      @submit.prevent="changePassword"
+    >
+      <header class="px-6 pt-5 pb-2">
+        <h2 class="text-base font-semibold">Change password</h2>
+        <p class="text-xs text-zinc-500 mt-0.5">
+          You'll stay signed in on this device after the change.
+        </p>
+      </header>
+
+      <section class="px-6 pb-5 pt-3 space-y-4">
+        <!-- Hidden username field is a hint for password managers so they
+             save the new password against the correct account. -->
+        <input
+          type="email"
+          autocomplete="username"
+          :value="auth.record?.email ?? ''"
+          class="hidden"
+          readonly
+          tabindex="-1"
+        />
+        <label class="block text-sm">
+          <span class="text-zinc-700 dark:text-zinc-300 font-medium">Current password</span>
+          <input
+            v-model="oldPassword"
+            type="password"
+            autocomplete="current-password"
+            class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm
+                   focus:outline-none focus:border-brand-blue"
+          />
+        </label>
+        <label class="block text-sm">
+          <span class="text-zinc-700 dark:text-zinc-300 font-medium">New password</span>
+          <input
+            v-model="newPassword"
+            type="password"
+            autocomplete="new-password"
+            minlength="8"
+            class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm
+                   focus:outline-none focus:border-brand-blue"
+          />
+        </label>
+        <label class="block text-sm">
+          <span class="text-zinc-700 dark:text-zinc-300 font-medium">Confirm new password</span>
+          <input
+            v-model="newPasswordConfirm"
+            type="password"
+            autocomplete="new-password"
+            minlength="8"
+            class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm
+                   focus:outline-none focus:border-brand-blue"
+          />
+          <span
+            v-if="newPasswordConfirm && newPassword !== newPasswordConfirm"
+            class="mt-1.5 block text-xs text-red-600 dark:text-red-400"
+          >
+            Passwords don't match.
+          </span>
+        </label>
+      </section>
+
+      <div
+        class="flex items-center justify-between gap-3 px-6 py-4
+               bg-zinc-50 dark:bg-zinc-950/40 border-t border-zinc-200 dark:border-zinc-800"
+      >
+        <p class="text-sm min-h-[1.25rem]">
+          <span v-if="pwSuccessMsg" class="text-green-600 dark:text-green-400">{{ pwSuccessMsg }}</span>
+          <span v-else-if="pwErrorMsg" class="text-red-600 dark:text-red-400">{{ pwErrorMsg }}</span>
+        </p>
+        <button
+          type="submit"
+          :disabled="changingPassword || !passwordFormValid"
+          class="rounded-md bg-brand-red hover:bg-brand-red-hover text-white px-4 py-1.5 text-sm font-medium
+                 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {{ changingPassword ? 'Updating…' : 'Update password' }}
         </button>
       </div>
     </form>
