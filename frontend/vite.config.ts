@@ -29,21 +29,19 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Precache the SPA shell so the app boots offline. Markdown bodies
-        // and inline images are handled by the runtime rules below.
+        // Precache the SPA shell so the PWA opens offline at start_url '/'.
+        // No navigateFallback — we don't intercept navigation requests, so
+        // paths we don't own (/_, /api/*, future PB routes) pass straight
+        // through to the network. The cost is that a browser refresh of a
+        // deep link offline fails; the PWA launch and in-app navigation
+        // (via vue-router, client-side) are unaffected.
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
-        // SPA fallback: deep links that aren't precached should return the
-        // shell so vue-router can resolve them client-side.
-        navigateFallback: '/index.html',
-        // Don't intercept API/auth/realtime/admin paths with the SPA fallback.
-        navigateFallbackDenylist: [/^\/api\//, /^\/_\//],
         runtimeCaching: [
           {
             // Document records — list + view. StaleWhileRevalidate so a
-            // cached response renders instantly (no network wait on flaky
-            // or fully-offline links) while a background fetch refreshes
-            // the cache for next time. Mutations call invalidateDocsCache()
-            // in lib/pwa.ts so the editor's own writes aren't served stale.
+            // cached response renders instantly while a background fetch
+            // refreshes the cache. Mutations call invalidateDocsCache() so
+            // the editor's own writes aren't served stale.
             urlPattern: ({ url }) =>
               url.pathname.startsWith('/api/collections/documents/records'),
             handler: 'StaleWhileRevalidate',
