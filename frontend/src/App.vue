@@ -35,21 +35,21 @@ onMounted(() => {
   <div v-else class="min-h-dvh">
     <!-- Mobile top bar — hamburger + title. Hidden on md+. -->
     <header
-      class="md:hidden fixed inset-x-0 top-0 z-30 h-12 flex items-center px-3 gap-3 border-b-2 border-brand-red bg-white dark:bg-zinc-900"
+      class="md:hidden fixed inset-x-0 top-0 z-30 h-14 flex items-center px-3 gap-3 border-b-2 border-brand-red bg-white dark:bg-zinc-900"
     >
       <button
         type="button"
-        class="p-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
+        class="p-2.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
         aria-label="Open menu"
         @click="mobileOpen = true"
       >
-        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="3" y1="6" x2="21" y2="6" />
           <line x1="3" y1="12" x2="21" y2="12" />
           <line x1="3" y1="18" x2="21" y2="18" />
         </svg>
       </button>
-      <span class="text-sm font-semibold truncate">
+      <span class="text-base font-semibold truncate">
         {{ config.config?.title || 'pb-wiki' }}
       </span>
     </header>
@@ -78,7 +78,7 @@ onMounted(() => {
          container, which scopes descendant `position: sticky` (e.g. the
          TOC rail in DocView) to main instead of the viewport. Wide
          elements (pre, table) handle their own horizontal overflow. -->
-    <main class="md:ml-80 p-6 pt-16 md:pt-6">
+    <main class="md:ml-80 p-6 pt-20 md:pt-6">
       <RouterView />
     </main>
   </div>

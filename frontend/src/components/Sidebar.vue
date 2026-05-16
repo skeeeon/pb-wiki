@@ -137,7 +137,7 @@ function toggleExpand(path: string) {
                 (r.path === '' && route.path === '/') || route.path === `/doc/${r.path}`,
             }"
           >
-            <div class="text-sm truncate">{{ r.title || r.path || 'Home' }}</div>
+            <div class="text-[15px] truncate">{{ r.title || r.path || 'Home' }}</div>
             <div v-if="r.path" class="text-xs text-zinc-500 truncate font-mono">{{ r.path }}</div>
             <div
               v-if="r.snippet"
@@ -168,7 +168,7 @@ function toggleExpand(path: string) {
         <RouterLink
           v-if="hasHome"
           to="/"
-          class="flex items-center py-1 px-2 rounded text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          class="flex items-center py-1 px-2 rounded text-[15px] hover:bg-zinc-100 dark:hover:bg-zinc-800"
           :class="{
             'bg-brand-blue/10 text-brand-blue dark:text-brand-blue-dark font-medium': route.path === '/',
           }"

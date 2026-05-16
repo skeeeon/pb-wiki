@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, toRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import {
+  PopoverRoot,
+  PopoverTrigger,
+  PopoverPortal,
+  PopoverContent,
+} from 'reka-ui'
 
 import { useDoc } from '@/composables/useDoc'
 import { useDocumentTitle } from '@/composables/useDocumentTitle'
@@ -50,6 +56,34 @@ function relativeTime(iso: string): string {
   if (abs < 2592000)  return fmt.format(Math.round(diffSec / 86400), 'day')
   if (abs < 31536000) return fmt.format(Math.round(diffSec / 2592000), 'month')
   return fmt.format(Math.round(diffSec / 31536000), 'year')
+}
+
+// Floating TOC button — visible only when the inline mobile TOC has scrolled
+// out of viewport, so users keep an affordance to jump headings on long pages.
+// Desktop (lg+) uses the sticky aside and doesn't need this.
+const inlineTocEl = ref<HTMLElement | null>(null)
+const inlineTocVisible = ref(true)
+const fabOpen = ref(false)
+let observer: IntersectionObserver | null = null
+
+watch(inlineTocEl, (el) => {
+  observer?.disconnect()
+  if (!el) {
+    inlineTocVisible.value = true
+    return
+  }
+  observer = new IntersectionObserver(
+    ([entry]) => { inlineTocVisible.value = entry.isIntersecting },
+    { threshold: 0 },
+  )
+  observer.observe(el)
+})
+
+onBeforeUnmount(() => observer?.disconnect())
+
+function onPopoverClick(ev: MouseEvent) {
+  const target = ev.target as HTMLElement | null
+  if (target?.closest('a')) fabOpen.value = false
 }
 
 // Browser hash-scroll fires before the async doc fetch lands, so the native
@@ -129,6 +163,7 @@ watch(
            over on lg+. Reuses TocSidebar so styling stays in one place. -->
       <details
         v-if="showToc"
+        ref="inlineTocEl"
         class="lg:hidden rounded-md border border-zinc-200 dark:border-zinc-800 px-3 py-2"
       >
         <summary class="text-sm font-medium cursor-pointer select-none text-zinc-700 dark:text-zinc-300">
@@ -152,6 +187,39 @@ watch(
           </div>
         </aside>
       </div>
+
+      <!-- Floating TOC button — appears below lg once the inline TOC has
+           scrolled out of viewport, keeping the heading list reachable on
+           long pages without bringing the full sidebar back. -->
+      <PopoverRoot v-if="showToc && !inlineTocVisible" v-model:open="fabOpen">
+        <PopoverTrigger
+          as="button"
+          type="button"
+          aria-label="On this page"
+          class="lg:hidden fixed bottom-4 right-4 z-40 w-12 h-12 rounded-full bg-brand-blue text-white shadow-lg flex items-center justify-center hover:bg-brand-blue-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" />
+            <line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+        </PopoverTrigger>
+        <PopoverPortal>
+          <PopoverContent
+            side="top"
+            align="end"
+            :side-offset="8"
+            :collision-padding="16"
+            class="lg:hidden z-50 w-[min(20rem,calc(100vw-2rem))] max-h-[60vh] overflow-y-auto rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 shadow-lg focus:outline-none"
+            @click="onPopoverClick"
+          >
+            <TocSidebar :headings="rendered.headings" :active-slug="activeSlug" />
+          </PopoverContent>
+        </PopoverPortal>
+      </PopoverRoot>
     </article>
   </div>
 </template>

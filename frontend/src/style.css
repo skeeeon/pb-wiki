@@ -73,3 +73,13 @@ html.dark body {
 .dark ::selection {
   background-color: rgba(90, 154, 245, 0.3);
 }
+
+/* iOS Safari zooms the viewport on focus when a form control's computed
+   font-size is below 16px. Most of our controls use Tailwind's text-sm
+   (14px), so bump them to 16px on phone-sized viewports — desktop keeps
+   the smaller styling. */
+@media (max-width: 640px) {
+  input, textarea, select {
+    font-size: 16px;
+  }
+}

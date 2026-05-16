@@ -25,7 +25,7 @@ const isActive = computed(
 <template>
   <li>
     <div
-      class="flex items-center rounded text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
+      class="flex items-center rounded text-[15px] hover:bg-zinc-100 dark:hover:bg-zinc-800"
       :class="{
         'bg-brand-blue/10 text-brand-blue dark:text-brand-blue-dark font-medium': isActive,
       }"
