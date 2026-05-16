@@ -8,6 +8,10 @@ import type { DocumentRecord } from '@/lib/types'
 // sidebar tree and the in-memory search filter. Centralizing it lets
 // mutating views (DocEdit save/delete) call `reload()` so the persistent
 // Sidebar mounted at <App> level picks up changes without a page refresh.
+//
+// The list is reloaded on every auth change so that the per-user access
+// filter in internal/hooks/documents.go is re-evaluated — otherwise an
+// admin's full list would persist into a later viewer/anonymous session.
 export const useDocsStore = defineStore('docs', () => {
   const list = ref<DocumentRecord[]>([])
   const loading = ref(false)
@@ -28,6 +32,11 @@ export const useDocsStore = defineStore('docs', () => {
       loading.value = false
     }
   }
+
+  pb.authStore.onChange(() => {
+    list.value = []
+    void load(true)
+  })
 
   return { list, loading, error, load, reload: () => load(true) }
 })
