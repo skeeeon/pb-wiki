@@ -39,14 +39,16 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//, /^\/_\//],
         runtimeCaching: [
           {
-            // Document records — list + view. NetworkFirst so users get
-            // fresh content online and a cached copy when offline.
+            // Document records — list + view. StaleWhileRevalidate so a
+            // cached response renders instantly (no network wait on flaky
+            // or fully-offline links) while a background fetch refreshes
+            // the cache for next time. Mutations call invalidateDocsCache()
+            // in lib/pwa.ts so the editor's own writes aren't served stale.
             urlPattern: ({ url }) =>
               url.pathname.startsWith('/api/collections/documents/records'),
-            handler: 'NetworkFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'pb-wiki-documents',
-              networkTimeoutSeconds: 4,
               expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 },
               cacheableResponse: { statuses: [0, 200] },
             },

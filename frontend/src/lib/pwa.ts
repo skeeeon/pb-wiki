@@ -63,6 +63,18 @@ export async function clearCache(): Promise<void> {
   await Promise.all(keys.map((k) => caches.delete(k)))
 }
 
+// Drop every cached entry in the documents runtime cache. Call this after a
+// successful create/update/delete so stale-while-revalidate can't serve the
+// just-edited doc's pre-save body back to the editor on the next view.
+export async function invalidateDocsCache(): Promise<void> {
+  if (!('caches' in globalThis)) return
+  try {
+    await caches.delete('pb-wiki-documents')
+  } catch {
+    /* ignore — cache may not exist yet, which is fine. */
+  }
+}
+
 async function unregisterAll(): Promise<void> {
   if (!('serviceWorker' in navigator)) return
   const regs = await navigator.serviceWorker.getRegistrations()

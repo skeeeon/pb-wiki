@@ -4,6 +4,7 @@ import { RouterView, useRoute } from 'vue-router'
 
 import { useConfigStore } from '@/stores/config'
 import { useDocumentTitle } from '@/composables/useDocumentTitle'
+import { online } from '@/composables/useOnline'
 import Sidebar from '@/components/Sidebar.vue'
 
 const config = useConfigStore()
@@ -74,11 +75,35 @@ onMounted(() => {
       <Sidebar />
     </aside>
 
+    <!-- Offline indicator. Fixed at the top of the main pane (right of the
+         sidebar on md+) so it doesn't shift layout when toggling. -->
+    <div
+      v-if="!online"
+      class="fixed top-12 md:top-0 left-0 md:left-80 right-0 z-30
+             bg-brand-yellow/90 text-zinc-900 text-xs font-medium
+             px-3 py-1.5 flex items-center gap-2 border-b border-amber-600/30"
+      role="status"
+    >
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M1 1l22 22" />
+        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+        <path d="M10.71 5.05A16 16 0 0 1 22.58 9" />
+        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+        <line x1="12" y1="20" x2="12.01" y2="20" />
+      </svg>
+      Offline — showing cached pages.
+    </div>
+
     <!-- No overflow-x on <main>: setting it would make main a scroll
          container, which scopes descendant `position: sticky` (e.g. the
          TOC rail in DocView) to main instead of the viewport. Wide
          elements (pre, table) handle their own horizontal overflow. -->
-    <main class="md:ml-80 p-6 pt-16 md:pt-6">
+    <main
+      class="md:ml-80 p-6 pt-16 md:pt-6"
+      :class="{ 'pt-24 md:pt-12': !online }"
+    >
       <RouterView />
     </main>
   </div>
