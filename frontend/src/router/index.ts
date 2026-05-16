@@ -47,6 +47,12 @@ const router = createRouter({
       props: (route) => ({ path: joinPath(route.params.path), mode: 'new' as const }),
     },
     {
+      path: '/account',
+      name: 'account',
+      component: () => import('@/views/Account.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/admin',
       redirect: '/admin/users',
     },

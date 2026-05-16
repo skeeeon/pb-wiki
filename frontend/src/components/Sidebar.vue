@@ -3,6 +3,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
+import { pb } from '@/lib/pb'
+import { clearCache as clearPwaCache } from '@/lib/pwa'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
 import { useDocsStore } from '@/stores/docs'
@@ -29,8 +31,19 @@ const { theme, toggle: toggleTheme } = useTheme()
 
 async function signOut() {
   auth.logout()
+  // Drop any cached docs/files so a second user on this device can't read
+  // the previous user's content from the offline cache.
+  await clearPwaCache()
   await router.push('/')
 }
+
+const avatarUrl = computed(() => {
+  const r = auth.record
+  if (!r || !r.avatar) return null
+  return pb.files.getURL(r, r.avatar)
+})
+
+const displayName = computed(() => auth.record?.name || auth.record?.email || '')
 
 onMounted(() => docsStore.load())
 
@@ -196,11 +209,17 @@ function toggleExpand(path: string) {
               class="flex items-center gap-2 flex-1 min-w-0 p-1 -m-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue"
               :aria-label="`Account menu for ${auth.record?.email}`"
             >
-              <div class="w-8 h-8 rounded-full bg-brand-blue text-white text-sm font-medium flex items-center justify-center shrink-0">
-                {{ (auth.record?.email ?? '?').charAt(0).toUpperCase() }}
+              <div class="w-8 h-8 rounded-full bg-brand-blue text-white text-sm font-medium flex items-center justify-center shrink-0 overflow-hidden">
+                <img
+                  v-if="avatarUrl"
+                  :src="avatarUrl"
+                  :alt="displayName"
+                  class="w-full h-full object-cover"
+                />
+                <span v-else>{{ (auth.record?.email ?? '?').charAt(0).toUpperCase() }}</span>
               </div>
               <div class="min-w-0 flex-1 text-left">
-                <div class="text-sm truncate">{{ auth.record?.email }}</div>
+                <div class="text-sm truncate">{{ displayName }}</div>
                 <div class="text-xs text-zinc-500">{{ auth.role }}</div>
               </div>
               <svg class="w-3.5 h-3.5 text-zinc-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -214,6 +233,18 @@ function toggleExpand(path: string) {
                 :side-offset="6"
                 class="min-w-[12rem] rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1 shadow-md text-sm focus:outline-none z-[60]"
               >
+                <DropdownMenuItem as-child>
+                  <RouterLink
+                    to="/account"
+                    class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer outline-none data-[highlighted]:bg-zinc-100 dark:data-[highlighted]:bg-zinc-800"
+                  >
+                    <svg class="w-4 h-4 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                    Account
+                  </RouterLink>
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   v-if="auth.isAdmin"
                   as-child
@@ -230,7 +261,6 @@ function toggleExpand(path: string) {
                   </RouterLink>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator
-                  v-if="auth.isAdmin"
                   class="h-px my-1 bg-zinc-200 dark:bg-zinc-800"
                 />
                 <DropdownMenuItem

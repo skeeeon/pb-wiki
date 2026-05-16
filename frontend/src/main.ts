@@ -6,6 +6,7 @@ import './style.css'
 import App from './App.vue'
 import router from './router'
 import { useConfigStore } from './stores/config'
+import { bootPwa } from './lib/pwa'
 import {
   applyCalloutContainers,
   applyFrontmatterPlugin,
@@ -52,3 +53,7 @@ await useConfigStore().load()
 
 app.use(router)
 app.mount('#app')
+
+// Register the service worker only if the user has opted in (managed from
+// the Account page). Runs after mount so it never delays first paint.
+void bootPwa()
