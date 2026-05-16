@@ -44,8 +44,11 @@ function esc(s: string): string {
 }
 
 export function applyFrontmatterPlugin(md: MarkdownIt) {
+  // Must register before `hr` (and `lheading`) — both run earlier than
+  // `paragraph` and would otherwise claim the bare `---` lines as a
+  // thematic break / setext H2 underline before we get a look.
   md.block.ruler.before(
-    'paragraph',
+    'hr',
     'frontmatter',
     (state, startLine, endLine, silent) => {
       // Only valid as the very first block of the document.
