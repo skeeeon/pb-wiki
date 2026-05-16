@@ -4,7 +4,6 @@ import { storeToRefs } from 'pinia'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { pb } from '@/lib/pb'
-import { clearCache as clearPwaCache } from '@/lib/pwa'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
 import { useDocsStore } from '@/stores/docs'
@@ -31,9 +30,6 @@ const { theme, toggle: toggleTheme } = useTheme()
 
 async function signOut() {
   auth.logout()
-  // Drop any cached docs/files so a second user on this device can't read
-  // the previous user's content from the offline cache.
-  await clearPwaCache()
   await router.push('/')
 }
 

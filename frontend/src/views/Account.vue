@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue'
 
 import { pb } from '@/lib/pb'
-import { applyPwaState, clearCache as clearPwaCache, pwaEnabled } from '@/lib/pwa'
 import { useAuthStore } from '@/stores/auth'
 import type { UserRecord } from '@/lib/types'
 
@@ -50,36 +49,6 @@ function removeAvatar() {
   clearAvatar.value = true
   if (avatarPreview.value) URL.revokeObjectURL(avatarPreview.value)
   avatarPreview.value = null
-}
-
-const cacheBusy = ref(false)
-const cacheMsg = ref('')
-
-async function onTogglePwa(e: Event) {
-  const checked = (e.target as HTMLInputElement).checked
-  cacheBusy.value = true
-  cacheMsg.value = ''
-  try {
-    await applyPwaState(checked)
-    cacheMsg.value = checked ? 'Offline cache enabled.' : 'Offline cache disabled and cleared.'
-  } catch (err) {
-    cacheMsg.value = err instanceof Error ? err.message : String(err)
-  } finally {
-    cacheBusy.value = false
-  }
-}
-
-async function clearCacheNow() {
-  cacheBusy.value = true
-  cacheMsg.value = ''
-  try {
-    await clearPwaCache()
-    cacheMsg.value = 'Cached pages cleared.'
-  } catch (err) {
-    cacheMsg.value = err instanceof Error ? err.message : String(err)
-  } finally {
-    cacheBusy.value = false
-  }
 }
 
 async function save() {
@@ -189,38 +158,5 @@ async function save() {
         <p v-if="errorMsg" class="text-sm text-red-600 dark:text-red-400">{{ errorMsg }}</p>
       </div>
     </form>
-
-    <section class="space-y-3 border-t border-zinc-200 dark:border-zinc-800 pt-6">
-      <header>
-        <h2 class="text-base font-semibold">Offline cache</h2>
-        <p class="text-sm text-zinc-500">
-          Caches pages you visit on this device so they remain readable offline.
-          Only content you have access to is cached. The cache is cleared on sign-out.
-        </p>
-      </header>
-
-      <label class="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          :checked="pwaEnabled"
-          :disabled="cacheBusy"
-          class="h-4 w-4"
-          @change="onTogglePwa"
-        />
-        <span>Enable offline cache</span>
-      </label>
-
-      <div class="flex items-center gap-3">
-        <button
-          type="button"
-          :disabled="cacheBusy"
-          class="rounded-md border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-60"
-          @click="clearCacheNow"
-        >
-          Clear cached pages
-        </button>
-        <p v-if="cacheMsg" class="text-sm text-zinc-600 dark:text-zinc-400">{{ cacheMsg }}</p>
-      </div>
-    </section>
   </div>
 </template>

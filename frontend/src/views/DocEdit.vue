@@ -16,7 +16,6 @@ import {
 } from 'reka-ui'
 
 import { pb } from '@/lib/pb'
-import { invalidateDocsCache } from '@/lib/pwa'
 import { useDoc } from '@/composables/useDoc'
 import { useAuthStore } from '@/stores/auth'
 import { useDocsStore } from '@/stores/docs'
@@ -103,7 +102,6 @@ async function save() {
     } else {
       await pb.collection('documents').create(data)
     }
-    await invalidateDocsCache()
     await docsStore.reload()
     router.push(`/doc/${data.path}`)
   } catch (err) {
@@ -118,7 +116,6 @@ async function deleteDoc() {
   deleting.value = true
   try {
     await pb.collection('documents').delete(doc.value.id)
-    await invalidateDocsCache()
     await docsStore.reload()
     router.push('/')
   } catch (err) {

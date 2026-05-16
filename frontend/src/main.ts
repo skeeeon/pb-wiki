@@ -6,7 +6,6 @@ import './style.css'
 import App from './App.vue'
 import router from './router'
 import { useConfigStore } from './stores/config'
-import { bootPwa } from './lib/pwa'
 import {
   applyCalloutContainers,
   applyFrontmatterPlugin,
@@ -59,6 +58,11 @@ if (!config.loadFromStorage()) {
 app.use(router)
 app.mount('#app')
 
-// Register the service worker only if the user has opted in (managed from
-// the Account page). Runs after mount so it never delays first paint.
-void bootPwa()
+// Register a tiny no-op service worker (public/sw.js) so the browser will
+// offer "Install app" / "Add to home screen". The SW does not cache or
+// intercept anything — it exists solely to satisfy installability.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {
+    /* registration failed (e.g. http dev preview); not fatal. */
+  })
+}
