@@ -21,3 +21,36 @@ declare module 'markdown-it-container' {
   const plugin: (md: MarkdownIt, name: string, options?: ContainerOptions) => void
   export default plugin
 }
+
+declare module 'markdown-it-sub' {
+  import type { PluginSimple } from 'markdown-it'
+  const plugin: PluginSimple
+  export default plugin
+}
+
+declare module 'markdown-it-sup' {
+  import type { PluginSimple } from 'markdown-it'
+  const plugin: PluginSimple
+  export default plugin
+}
+
+declare module 'markdown-it-mark' {
+  import type { PluginSimple } from 'markdown-it'
+  const plugin: PluginSimple
+  export default plugin
+}
+
+declare module 'markdown-it-implicit-figures' {
+  import type { PluginWithOptions } from 'markdown-it'
+  interface ImplicitFiguresOptions {
+    dataType?: boolean
+    figcaption?: boolean | 'title' | 'alt'
+    keepAlt?: boolean
+    tabindex?: boolean
+    link?: boolean
+    copyAttrs?: boolean | string
+    lazyLoading?: boolean
+  }
+  const plugin: PluginWithOptions<ImplicitFiguresOptions>
+  export default plugin
+}

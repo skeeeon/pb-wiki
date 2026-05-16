@@ -3,6 +3,10 @@ import type Token from 'markdown-it/lib/token.mjs'
 import anchor from 'markdown-it-anchor'
 import taskLists from 'markdown-it-task-lists'
 import container from 'markdown-it-container'
+import sub from 'markdown-it-sub'
+import sup from 'markdown-it-sup'
+import mark from 'markdown-it-mark'
+import implicitFigures from 'markdown-it-implicit-figures'
 
 import { applyYoutubePlugin } from './markdown-youtube'
 
@@ -74,8 +78,25 @@ export function applyCalloutContainers(md: MarkdownIt) {
   }
 }
 
+// Inline formatting and figure captions used by both the view renderer and
+// the editor preview. Keeping them in one function ensures the two stay in
+// lockstep — adding a plugin here picks it up in both places.
+// - sub: `~text~` → <sub>
+// - sup: `^text^` → <sup>
+// - mark: `==text==` → <mark>
+// - implicit-figures: a standalone `![alt](url "caption")` becomes
+//   <figure><img><figcaption>caption</figcaption></figure>. `figcaption: true`
+//   uses the title attribute, leaving alt for screen-reader description.
+export function applyMarkdownExtras(md: MarkdownIt) {
+  md.use(sub)
+  md.use(sup)
+  md.use(mark)
+  md.use(implicitFigures, { figcaption: true })
+}
+
 applyCalloutContainers(md)
 applyYoutubePlugin(md)
+applyMarkdownExtras(md)
 
 // Re-export so the editor preview (md-editor-v3) can wire the same syntax.
 export { applyYoutubePlugin }

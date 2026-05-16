@@ -118,6 +118,30 @@ pb auth
 
 Reach for the export workflow above instead when you specifically need a flat tree of every page (snapshots, backups, bulk transforms) — not for routine AI lookup or edits.
 
+## Supported markdown
+
+CommonMark plus a small, opinionated set of extensions:
+
+| Feature | Syntax |
+|---|---|
+| Heading anchors | auto on `##`/`###` (id used by the TOC sidebar) |
+| Task lists | `- [ ]` / `- [x]` |
+| Subscript | `~text~` |
+| Superscript | `^text^` |
+| Highlight | `==text==` |
+| Image caption | `![alt](url "caption")` → `<figure>` + `<figcaption>` |
+| Callouts | `::: note`, `::: tip`, `::: warning`, `::: danger` (close with `:::`) |
+| YouTube embeds | a line containing only a YouTube URL |
+| Hide auto-TOC | `<!-- toc: false -->` or `<!-- no-toc -->` on the first line |
+
+Raw HTML is stripped on both the saved view and the editor preview
+(`html: false`), so `<script>` and inline event handlers can't slip through —
+even from a compromised editor account.
+
+See [`examples/markdown-reference.md`](./examples/markdown-reference.md) for a
+copy-pasteable cheatsheet that exercises every feature. `go run . import
+./examples` imports it into the wiki as `/doc/examples/markdown-reference`.
+
 ## Schema and migrations
 
 Migrations live in [`migrations/`](./migrations/) and self-register via `init()`. They run automatically on first boot (`Automigrate` is enabled when running via `go run`, and explicitly through `pb-wiki migrate up` for prod binaries).

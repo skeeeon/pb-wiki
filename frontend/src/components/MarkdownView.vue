@@ -28,6 +28,16 @@ defineProps<{ html: string }>()
 .markdown-body th, .markdown-body td { border: 1px solid rgb(212 212 216); padding: 0.25rem 0.5rem; text-align: left; }
 .markdown-body img { max-width: 100%; border-radius: 0.375rem; margin: 0.75rem 0; }
 .markdown-body hr  { margin: 1.5rem 0; border-color: rgb(228 228 231); }
+.markdown-body mark { background: var(--color-brand-yellow); color: rgb(24 24 27); padding: 0 0.15rem; border-radius: 0.125rem; }
+
+/* Image captions from `![alt](url "caption")` — markdown-it-implicit-figures
+   wraps a standalone image in <figure>; we move the margin from <img> to
+   <figure> so spacing matches a bare image, and style the caption as a
+   small, muted line beneath. */
+.markdown-body figure { margin: 0.75rem 0; }
+.markdown-body figure img { margin: 0; }
+.markdown-body figcaption { margin-top: 0.375rem; font-size: 0.875rem; color: rgb(82 82 91); font-style: italic; text-align: center; }
+.dark .markdown-body figcaption { color: rgb(161 161 170); }
 
 /* Task lists — checkbox aligned with first line, no bullet. */
 .markdown-body ul.contains-task-list { list-style: none; padding-left: 0.5rem; }

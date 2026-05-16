@@ -6,15 +6,27 @@ import './style.css'
 import App from './App.vue'
 import router from './router'
 import { useConfigStore } from './stores/config'
-import { applyCalloutContainers, applyYoutubePlugin } from './lib/markdown'
+import { applyCalloutContainers, applyMarkdownExtras, applyYoutubePlugin } from './lib/markdown'
 
-// Teach md-editor-v3's preview pane the same ::: callouts and YouTube
-// auto-embed our renderer supports. The editor already ships its own
-// anchors, task lists, and !!! admonitions; we only add what's missing.
+// Teach md-editor-v3's preview pane the same ::: callouts, YouTube embed,
+// sub/sup/mark, and image-caption figures our renderer supports. The editor
+// already ships anchors, task lists, and !!! admonitions; we only add what's
+// missing so the preview matches the saved view.
+//
+// `md.options.html = false` mirrors the view renderer's posture (see
+// lib/markdown.ts). md-editor-v3 instantiates its preview's markdown-it with
+// `html: true`, which would let an editor inject <script>/onerror handlers
+// that execute in another editor's session when they open the doc to review
+// it — privilege escalation within the editor pool. Flipping the option
+// here only suppresses raw-HTML *source* tokens; plugin-emitted HTML
+// (callouts, figures, YouTube iframes, the editor's own admonitions/tables)
+// is unaffected.
 mdEditorConfig({
   markdownItConfig(md) {
+    md.options.html = false
     applyCalloutContainers(md)
     applyYoutubePlugin(md)
+    applyMarkdownExtras(md)
   },
 })
 // Side-effect import: initializes the theme on `<html>` before the first
