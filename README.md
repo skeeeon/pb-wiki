@@ -74,6 +74,50 @@ Records are matched by `path`, so re-running the import updates existing documen
 go run . import ./wiki        # or ./pb-wiki import ./wiki for the built binary
 ```
 
+### Exporting content
+
+pb-wiki itself is import-only — there is no `export` subcommand and the wiki never writes back to disk. To get content out, use [pb-cli](https://github.com/skeeeon/pb-cli) plus `jq` to materialize each `documents` record as a frontmatter-prefixed `.md` file.
+
+This is the right tool when you want a **flat snapshot on disk** — seeding a new wiki, periodic backups, or bulk text transforms you'd rather run with `rg`/`sed` than through PocketBase filters. For AI/agent access, don't export; see [Using the wiki with an AI agent](#using-the-wiki-with-an-ai-agent) below — a static dump goes stale as soon as anyone edits a page.
+
+Because `path` lives in the frontmatter, the exported files can live in a single flat directory — name them by record ID for stability across renames:
+
+```bash
+mkdir -p wiki
+pb c list documents --limit 500 --output json \
+  | jq -c '.items[]' \
+  | while read -r row; do
+      id=$(jq -r '.id' <<<"$row")
+      {
+        printf -- '---\npath: %s\ntitle: %s\n---\n' \
+          "$(jq -r '.path' <<<"$row")" \
+          "$(jq -r '.title' <<<"$row")"
+        jq -r '.body' <<<"$row"
+      } > "wiki/${id}.md"
+    done
+```
+
+The resulting files round-trip cleanly through `pb-wiki import`. Caveats:
+
+- `--limit 500` is one page; for larger wikis paginate with `--page` or raise the limit.
+- A `title` containing a YAML metacharacter (e.g. an unquoted colon) would produce invalid frontmatter; quote or sanitize titles up front if that's a concern.
+
+## Using the wiki with an AI agent
+
+For Claude Code or similar tooling, query the wiki live rather than working off an exported snapshot. A snapshot goes stale the moment someone edits a page, the record-ID filenames defeat name-based grep, and reading every body up-front burns context.
+
+The repo ships a Claude Code skill at [`.claude/skills/wiki/SKILL.md`](./.claude/skills/wiki/SKILL.md) that wraps [pb-cli](https://github.com/skeeeon/pb-cli) with an **index → fetch** pattern: list `title,path` first, pull `body` only for the page(s) you actually need, and route writes through a draft-and-confirm flow that respects the same path-based access rules the UI enforces. It activates automatically when an agent working in this repo is asked about "the wiki".
+
+One-time setup per machine:
+
+```bash
+pb context add wiki --url https://your-wiki.example.com   # see pb-cli docs
+pb context select wiki
+pb auth
+```
+
+Reach for the export workflow above instead when you specifically need a flat tree of every page (snapshots, backups, bulk transforms) — not for routine AI lookup or edits.
+
 ## Schema and migrations
 
 Migrations live in [`migrations/`](./migrations/) and self-register via `init()`. They run automatically on first boot (`Automigrate` is enabled when running via `go run`, and explicitly through `pb-wiki migrate up` for prod binaries).
