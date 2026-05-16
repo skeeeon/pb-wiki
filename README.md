@@ -132,6 +132,8 @@ CommonMark plus a small, opinionated set of extensions:
 | Image caption | `![alt](url "caption")` → `<figure>` + `<figcaption>` |
 | Callouts | `::: note`, `::: tip`, `::: warning`, `::: danger` (close with `:::`) |
 | YouTube embeds | a line containing only a YouTube URL |
+| Mermaid diagrams | ` ```mermaid ` fenced block (library lazy-loaded on first use) |
+| Frontmatter table | leading `---` … `---` YAML block renders as a key/value table |
 | Hide auto-TOC | `<!-- toc: false -->` or `<!-- no-toc -->` on the first line |
 
 Raw HTML is stripped on both the saved view and the editor preview

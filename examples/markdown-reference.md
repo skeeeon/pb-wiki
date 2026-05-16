@@ -156,16 +156,64 @@ content):
 `<!-- no-toc -->` works too. The directive is stripped from the rendered
 output, so it never appears as visible text.
 
+## Diagrams (Mermaid)
+
+A ` ```mermaid ` fenced block renders as a [Mermaid](https://mermaid.js.org)
+diagram. The library is lazy-loaded on first use, so docs without diagrams
+pay no bundle cost.
+
+```mermaid
+flowchart LR
+    A[Author] -->|writes markdown| B(pb-wiki)
+    B --> C{Path-based access?}
+    C -->|allow| D[Render in DocView]
+    C -->|deny| E[404 hides existence]
+```
+
+```mermaid
+sequenceDiagram
+    participant Editor
+    participant Wiki
+    participant Reader
+    Editor->>Wiki: save document
+    Wiki-->>Editor: 200 OK
+    Reader->>Wiki: GET /doc/path
+    Wiki-->>Reader: rendered HTML (after access check)
+```
+
+The diagram theme follows the wiki's light/dark mode.
+
+## Frontmatter
+
+If a doc body starts with a YAML frontmatter block (`---` … `---` on the
+very first lines), it renders as a small key/value table at the top of the
+page — the same shape GitHub shows when viewing a raw `.md` file. Only
+flat `key: value` lines are parsed; lists and nested maps fall through.
+
+The on-disk `.md` for this page starts with:
+
+```yaml
+---
+path: examples/markdown-reference
+title: Markdown reference
+---
+```
+
+…but the importer parses the YAML to populate the `path` and `title`
+collection fields and strips the block from the body before saving, so the
+imported version of this doc won't render a frontmatter table. To see the
+feature in action, paste a frontmatter block into the editor manually — it
+will render in both the preview pane and the saved view.
+
 ## Things to know
 
 - **Raw HTML is stripped.** `html: false` is set on both the saved view and
   the editor preview, so `<script>` tags and inline event handlers like
   `onerror=` render as escaped text instead of executing — even when typed
   by an editor account.
-- **Math and Mermaid don't render in the view.** md-editor-v3's preview pane
-  will render KaTeX (`$$…$$`) and Mermaid (a `mermaid` fenced block), but
-  pb-wiki's saved view doesn't ship those plugins. Content that depends on
-  them will look right while editing and wrong on the rendered page.
+- **KaTeX doesn't render in the view.** md-editor-v3's preview pane will
+  render math (`$$…$$`), but pb-wiki's view doesn't ship KaTeX. Use an
+  image or describe the formula in prose if it has to appear on the page.
 - **Heading anchors are invisible.** There's no `#` permalink icon next to
   headings — the sidebar TOC is the navigation affordance, and `#fragment`
   URLs jump to the right heading because each carries an `id`.

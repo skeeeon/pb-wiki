@@ -1,9 +1,55 @@
 <script setup lang="ts">
-defineProps<{ html: string }>()
+import { nextTick, ref, watch } from 'vue'
+
+import { useTheme } from '@/composables/useTheme'
+
+const props = defineProps<{ html: string }>()
+const container = ref<HTMLElement | null>(null)
+const { theme } = useTheme()
+
+// Lazy-load mermaid only when a doc actually contains a diagram. The fence
+// plugin (lib/markdown-mermaid.ts) emits <pre class="mermaid" data-mermaid-src>
+// placeholders; we walk them after v-html has settled, fetch mermaid on first
+// use, and run it against the unprocessed nodes. The original source is kept
+// in `data-mermaid-src` so a light/dark toggle can re-render in the new
+// theme by clearing rendered SVGs and replaying mermaid.run().
+async function renderMermaid() {
+  await nextTick()
+  const root = container.value
+  if (!root) return
+
+  const all = Array.from(root.querySelectorAll<HTMLElement>('pre.mermaid'))
+  if (all.length === 0) return
+
+  // After a theme change, previously rendered nodes have data-processed="true"
+  // and contain SVG instead of source. Restore source so mermaid.run() will
+  // re-process them.
+  for (const node of all) {
+    if (node.dataset.processed === 'true' && node.dataset.mermaidSrc) {
+      node.removeAttribute('data-processed')
+      node.innerHTML = ''
+      node.textContent = node.dataset.mermaidSrc
+    }
+  }
+
+  try {
+    const { default: mermaid } = await import('mermaid')
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: theme.value === 'dark' ? 'dark' : 'default',
+      securityLevel: 'strict',
+    })
+    await mermaid.run({ nodes: all })
+  } catch (err) {
+    console.error('mermaid render failed:', err)
+  }
+}
+
+watch([() => props.html, theme], renderMermaid, { immediate: true })
 </script>
 
 <template>
-  <div class="markdown-body space-y-3 leading-relaxed" v-html="html" />
+  <div ref="container" class="markdown-body space-y-3 leading-relaxed" v-html="html" />
 </template>
 
 <style>
@@ -39,10 +85,23 @@ defineProps<{ html: string }>()
 .markdown-body figcaption { margin-top: 0.375rem; font-size: 0.875rem; color: rgb(82 82 91); font-style: italic; text-align: center; }
 .dark .markdown-body figcaption { color: rgb(161 161 170); }
 
+/* Frontmatter table rendered by lib/markdown-frontmatter.ts. Override the
+   generic `.markdown-body table { display: block }` rule (which is there to
+   scroll wide tables) so the frontmatter table sizes to its content. */
+.markdown-body table.frontmatter { display: table; width: auto; font-size: 0.875rem; margin: 0 0 1rem 0; }
+.markdown-body table.frontmatter th { background: rgb(244 244 245); font-weight: 600; text-align: right; vertical-align: top; color: rgb(82 82 91); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.dark .markdown-body table.frontmatter th { background: var(--color-brand-navy-300); color: rgb(212 212 216); }
+
 /* Task lists — checkbox aligned with first line, no bullet. */
 .markdown-body ul.contains-task-list { list-style: none; padding-left: 0.5rem; }
 .markdown-body li.task-list-item { display: flex; align-items: baseline; gap: 0.5rem; }
 .markdown-body li.task-list-item input[type="checkbox"] { transform: translateY(0.1rem); }
+
+/* Mermaid placeholder before the runtime takes over: hide the source so it
+   doesn't flash as raw text in the brief window before mermaid loads. Once
+   mermaid runs, it sets data-processed="true" and renders the SVG inline. */
+.markdown-body pre.mermaid { background: transparent; padding: 0; overflow: visible; min-height: 1.5rem; color: transparent; }
+.markdown-body pre.mermaid[data-processed="true"] { color: inherit; text-align: center; }
 
 /* YouTube embeds — unscoped so the editor preview renders them the same
    way. Aspect ratio keeps the iframe responsive without JS. */
@@ -66,9 +125,16 @@ defineProps<{ html: string }>()
 
 .dark .markdown-body a { color: var(--color-brand-blue-dark); }
 .dark .markdown-body code, .dark .markdown-body pre { background: var(--color-brand-navy-200); }
+.dark .markdown-body pre.mermaid { background: transparent; }
 .dark .markdown-body blockquote { background: var(--color-brand-navy-200); border-left-color: var(--color-brand-navy-100); color: rgb(212 212 216); }
 .dark .markdown-body th, .dark .markdown-body td { border-color: var(--color-brand-navy-100); }
 .dark .markdown-body hr { border-color: var(--color-brand-navy-200); }
 .dark .markdown-body h1, .dark .markdown-body h2 { border-bottom-color: var(--color-brand-navy-100); }
 .dark .callout { background: var(--color-brand-navy-200); }
+/* Title colors are tuned for white-ish callout backgrounds — on the navy-200
+   dark surface, amber-700 / red-700 fall below WCAG AA. Swap to lighter
+   400-shades so the labels stay legible. Note + tip are unchanged: the brand
+   blue and green-600 read fine on navy. */
+.dark .callout-warning .callout-title { color: rgb(250 204 21); } /* yellow-400 */
+.dark .callout-danger  .callout-title { color: rgb(248 113 113); } /* red-400 */
 </style>

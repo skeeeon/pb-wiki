@@ -9,6 +9,8 @@ import mark from 'markdown-it-mark'
 import implicitFigures from 'markdown-it-implicit-figures'
 
 import { applyYoutubePlugin } from './markdown-youtube'
+import { applyFrontmatterPlugin } from './markdown-frontmatter'
+import { applyMermaidPlugin } from './markdown-mermaid'
 
 export interface Heading {
   level: number
@@ -85,21 +87,27 @@ export function applyCalloutContainers(md: MarkdownIt) {
 // - sup: `^text^` → <sup>
 // - mark: `==text==` → <mark>
 // - implicit-figures: a standalone `![alt](url "caption")` becomes
-//   <figure><img><figcaption>caption</figcaption></figure>. `figcaption: true`
-//   uses the title attribute, leaving alt for screen-reader description.
+//   <figure><img><figcaption>caption</figcaption></figure>. `figcaption: 'title'`
+//   sources the caption from the title attribute (third arg), leaving the
+//   alt text on the <img> for screen readers. (`true`/`'alt'` would instead
+//   use alt as the caption and wipe it from the img — not what we want.)
 export function applyMarkdownExtras(md: MarkdownIt) {
   md.use(sub)
   md.use(sup)
   md.use(mark)
-  md.use(implicitFigures, { figcaption: true })
+  md.use(implicitFigures, { figcaption: 'title' })
 }
 
 applyCalloutContainers(md)
 applyYoutubePlugin(md)
 applyMarkdownExtras(md)
+applyFrontmatterPlugin(md)
+applyMermaidPlugin(md)
 
 // Re-export so the editor preview (md-editor-v3) can wire the same syntax.
-export { applyYoutubePlugin }
+// Note: mermaid is intentionally NOT re-exported — md-editor-v3 ships its own
+// mermaid integration for the preview pane (see markdown-mermaid.ts).
+export { applyYoutubePlugin, applyFrontmatterPlugin }
 
 // `<!-- toc: false -->` or `<!-- no-toc -->` at the top of a doc suppresses
 // the auto-sidebar TOC. Stripped before rendering so it doesn't appear as text.

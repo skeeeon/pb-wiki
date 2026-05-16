@@ -6,7 +6,12 @@ import './style.css'
 import App from './App.vue'
 import router from './router'
 import { useConfigStore } from './stores/config'
-import { applyCalloutContainers, applyMarkdownExtras, applyYoutubePlugin } from './lib/markdown'
+import {
+  applyCalloutContainers,
+  applyFrontmatterPlugin,
+  applyMarkdownExtras,
+  applyYoutubePlugin,
+} from './lib/markdown'
 
 // Teach md-editor-v3's preview pane the same ::: callouts, YouTube embed,
 // sub/sup/mark, and image-caption figures our renderer supports. The editor
@@ -27,6 +32,7 @@ mdEditorConfig({
     applyCalloutContainers(md)
     applyYoutubePlugin(md)
     applyMarkdownExtras(md)
+    applyFrontmatterPlugin(md)
   },
 })
 // Side-effect import: initializes the theme on `<html>` before the first
