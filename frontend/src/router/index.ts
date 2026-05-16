@@ -69,6 +69,12 @@ const router = createRouter({
       meta: { requiresRole: ['admin'] },
     },
     {
+      path: '/admin/move',
+      name: 'admin-bulk-move',
+      component: () => import('@/views/admin/BulkMove.vue'),
+      meta: { requiresRole: ['admin'] },
+    },
+    {
       path: '/admin/settings',
       name: 'admin-settings',
       component: () => import('@/views/admin/Settings.vue'),

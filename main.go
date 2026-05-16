@@ -8,6 +8,7 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
 
+	"github.com/skeeeon/pb-wiki/internal/api"
 	"github.com/skeeeon/pb-wiki/internal/hooks"
 	"github.com/skeeeon/pb-wiki/internal/importer"
 	"github.com/skeeeon/pb-wiki/internal/static"
@@ -25,6 +26,7 @@ func main() {
 	})
 
 	hooks.Register(app)
+	api.RegisterBulkMove(app)
 	static.Register(app, frontendDist())
 
 	app.RootCmd.AddCommand(importer.New(app))

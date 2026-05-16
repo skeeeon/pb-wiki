@@ -96,32 +96,41 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="max-w-5xl mx-auto">
+  <div class="max-w-5xl mx-auto space-y-6">
     <AdminNav />
 
-    <header class="flex items-baseline justify-between mb-4">
+    <header>
       <h1 class="text-xl font-semibold">Users</h1>
+      <p class="text-sm text-zinc-500">Manage roles and group memberships used by access rules.</p>
     </header>
 
-    <p v-if="errorMsg" class="text-sm text-red-600 dark:text-red-400 mb-3">{{ errorMsg }}</p>
+    <p v-if="errorMsg" class="text-sm text-red-600 dark:text-red-400">{{ errorMsg }}</p>
 
-    <section class="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden mb-6">
+    <section
+      class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden"
+    >
+      <header
+        class="flex items-baseline justify-between px-6 py-3 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200 dark:border-zinc-800"
+      >
+        <h2 class="text-sm font-semibold">All users</h2>
+        <span class="text-xs text-zinc-500">{{ users.length }} total</span>
+      </header>
       <table v-if="!loading && users.length > 0" class="w-full text-sm">
-        <thead class="bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-          <tr>
-            <th class="text-left px-3 py-2 font-medium">Email</th>
+        <thead class="text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wide">
+          <tr class="border-b border-zinc-200 dark:border-zinc-800">
+            <th class="text-left px-6 py-2 font-medium">Email</th>
             <th class="text-left px-3 py-2 font-medium w-32">Role</th>
             <th class="text-left px-3 py-2 font-medium">Groups</th>
-            <th class="text-right px-3 py-2 font-medium w-40">Actions</th>
+            <th class="text-right px-6 py-2 font-medium w-40">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
           <tr v-for="u in users" :key="u.id">
-            <td class="px-3 py-2 font-mono text-xs">{{ u.email }}</td>
+            <td class="px-6 py-2 font-mono text-xs">{{ u.email }}</td>
             <td class="px-3 py-2">
               <select
                 v-model="u.role"
-                class="rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-sm"
+                class="rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-sm focus:outline-none focus:border-brand-blue"
               >
                 <option value="admin">admin</option>
                 <option value="editor">editor</option>
@@ -132,67 +141,94 @@ onMounted(load)
               <input
                 v-model="u.groupsText"
                 placeholder="comma, separated, groups"
-                class="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-sm font-mono"
+                class="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-sm font-mono focus:outline-none focus:border-brand-blue"
               />
             </td>
-            <td class="px-3 py-2 text-right space-x-3">
-              <button
-                type="button"
-                :disabled="u.saving"
-                class="text-sm underline disabled:opacity-60"
-                @click="saveUser(u)"
-              >
-                {{ u.saving ? 'Saving…' : 'Save' }}
-              </button>
-              <button
-                type="button"
-                class="text-sm text-red-600 dark:text-red-400 underline"
-                @click="deleteUser(u)"
-              >
-                Delete
-              </button>
+            <td class="px-6 py-2 text-right">
+              <div class="inline-flex items-center gap-2">
+                <button
+                  type="button"
+                  :disabled="u.saving"
+                  class="rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-3 py-1 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  @click="saveUser(u)"
+                >
+                  {{ u.saving ? 'Saving…' : 'Save' }}
+                </button>
+                <button
+                  type="button"
+                  class="text-xs text-red-600 dark:text-red-400 hover:underline"
+                  @click="deleteUser(u)"
+                >
+                  Delete
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
-      <p v-else-if="loading" class="px-3 py-3 text-zinc-500">Loading…</p>
-      <p v-else class="px-3 py-3 text-zinc-500">No users yet.</p>
+      <p v-else-if="loading" class="px-6 py-4 text-sm text-zinc-500">Loading…</p>
+      <p v-else class="px-6 py-4 text-sm text-zinc-500">No users yet.</p>
     </section>
 
-    <section class="border border-zinc-200 dark:border-zinc-800 rounded-lg p-4">
-      <h2 class="text-sm font-semibold mb-3">Add a user</h2>
-      <form class="grid gap-3 sm:grid-cols-[2fr_2fr_1fr_auto]" @submit.prevent="createUser">
-        <input
-          v-model="newEmail"
-          type="email"
-          required
-          placeholder="user@example.com"
-          class="rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm"
-        />
-        <input
-          v-model="newPassword"
-          type="password"
-          required
-          placeholder="Password (≥ 8 chars)"
-          autocomplete="new-password"
-          class="rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm"
-        />
-        <select
-          v-model="newRole"
-          class="rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm"
-        >
-          <option value="admin">admin</option>
-          <option value="editor">editor</option>
-          <option value="viewer">viewer</option>
-        </select>
+    <form
+      class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden"
+      @submit.prevent="createUser"
+    >
+      <header class="px-6 pt-5 pb-2">
+        <h2 class="text-base font-semibold">Add a user</h2>
+        <p class="text-xs text-zinc-500 mt-0.5">
+          The email domain must be allow-listed in PocketBase's users collection.
+        </p>
+      </header>
+
+      <section class="px-6 pb-5 pt-3">
+        <div class="grid gap-3 sm:grid-cols-[2fr_2fr_1fr]">
+          <label class="block text-sm">
+            <span class="text-zinc-700 dark:text-zinc-300 font-medium">Email</span>
+            <input
+              v-model="newEmail"
+              type="email"
+              required
+              placeholder="user@example.com"
+              class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm focus:outline-none focus:border-brand-blue"
+            />
+          </label>
+          <label class="block text-sm">
+            <span class="text-zinc-700 dark:text-zinc-300 font-medium">Password</span>
+            <input
+              v-model="newPassword"
+              type="password"
+              required
+              placeholder="≥ 8 characters"
+              autocomplete="new-password"
+              class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm focus:outline-none focus:border-brand-blue"
+            />
+          </label>
+          <label class="block text-sm">
+            <span class="text-zinc-700 dark:text-zinc-300 font-medium">Role</span>
+            <select
+              v-model="newRole"
+              class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm focus:outline-none focus:border-brand-blue"
+            >
+              <option value="admin">admin</option>
+              <option value="editor">editor</option>
+              <option value="viewer">viewer</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <div
+        class="flex items-center justify-end gap-3 px-6 py-4 bg-zinc-50 dark:bg-zinc-950/40 border-t border-zinc-200 dark:border-zinc-800"
+      >
         <button
           type="submit"
           :disabled="creating"
-          class="rounded-md bg-brand-red hover:bg-brand-red-hover text-white px-3 py-2 text-sm font-medium disabled:opacity-60"
+          class="rounded-md bg-brand-red hover:bg-brand-red-hover text-white px-4 py-1.5 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {{ creating ? 'Creating…' : 'Create' }}
+          {{ creating ? 'Creating…' : 'Create user' }}
         </button>
-      </form>
-    </section>
+      </div>
+    </form>
   </div>
 </template>

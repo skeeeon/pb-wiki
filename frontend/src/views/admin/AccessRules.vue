@@ -118,51 +118,58 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="max-w-5xl mx-auto">
+  <div class="max-w-5xl mx-auto space-y-6">
     <AdminNav />
 
-    <header class="flex items-baseline justify-between mb-4">
+    <header>
       <h1 class="text-xl font-semibold">Access rules</h1>
+      <p class="text-sm text-zinc-500">
+        Rules are evaluated in ascending <code>priority</code> order and the first matching
+        pattern wins. Use lower numbers for rules that must take precedence.
+      </p>
     </header>
 
-    <p class="text-sm text-zinc-500 mb-4">
-      Rules are evaluated in ascending <code>priority</code> order and the first matching pattern wins.
-      Use lower numbers for rules that must take precedence.
-    </p>
+    <p v-if="errorMsg" class="text-sm text-red-600 dark:text-red-400">{{ errorMsg }}</p>
 
-    <p v-if="errorMsg" class="text-sm text-red-600 dark:text-red-400 mb-3">{{ errorMsg }}</p>
-
-    <section class="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden mb-6">
+    <section
+      class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden"
+    >
+      <header
+        class="flex items-baseline justify-between px-6 py-3 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200 dark:border-zinc-800"
+      >
+        <h2 class="text-sm font-semibold">All rules</h2>
+        <span class="text-xs text-zinc-500">{{ rules.length }} total</span>
+      </header>
       <table v-if="!loading && rules.length > 0" class="w-full text-sm">
-        <thead class="bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-          <tr>
-            <th class="text-left px-3 py-2 font-medium w-20">Priority</th>
+        <thead class="text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wide">
+          <tr class="border-b border-zinc-200 dark:border-zinc-800">
+            <th class="text-left px-6 py-2 font-medium w-20">Priority</th>
             <th class="text-left px-3 py-2 font-medium">Pattern</th>
             <th class="text-left px-3 py-2 font-medium w-32">Access</th>
             <th class="text-left px-3 py-2 font-medium">Groups</th>
             <th class="text-left px-3 py-2 font-medium">Description</th>
-            <th class="text-right px-3 py-2 font-medium w-32">Actions</th>
+            <th class="text-right px-6 py-2 font-medium w-32">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
           <tr v-for="r in rules" :key="r.id">
-            <td class="px-3 py-2">
+            <td class="px-6 py-2">
               <input
                 v-model.number="r.priority"
                 type="number"
-                class="w-16 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-sm"
+                class="w-16 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-sm focus:outline-none focus:border-brand-blue"
               />
             </td>
             <td class="px-3 py-2">
               <input
                 v-model="r.pattern"
-                class="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-sm font-mono"
+                class="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-sm font-mono focus:outline-none focus:border-brand-blue"
               />
             </td>
             <td class="px-3 py-2">
               <select
                 v-model="r.access"
-                class="rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-sm"
+                class="rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-sm focus:outline-none focus:border-brand-blue"
               >
                 <option value="public">public</option>
                 <option value="private">private</option>
@@ -174,65 +181,78 @@ onMounted(load)
                 v-model="r.groupsText"
                 :disabled="r.access !== 'restricted'"
                 placeholder="(restricted only)"
-                class="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-sm font-mono disabled:opacity-50"
+                class="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-sm font-mono focus:outline-none focus:border-brand-blue disabled:opacity-50"
               />
             </td>
             <td class="px-3 py-2">
               <input
                 v-model="r.description"
-                class="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-sm"
+                class="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-sm focus:outline-none focus:border-brand-blue"
               />
             </td>
-            <td class="px-3 py-2 text-right space-x-3">
-              <button
-                type="button"
-                :disabled="r.saving"
-                class="text-sm underline disabled:opacity-60"
-                @click="saveRule(r)"
-              >
-                {{ r.saving ? 'Saving…' : 'Save' }}
-              </button>
-              <button
-                type="button"
-                class="text-sm text-red-600 dark:text-red-400 underline"
-                @click="deleteRule(r)"
-              >
-                Delete
-              </button>
+            <td class="px-6 py-2 text-right">
+              <div class="inline-flex items-center gap-2">
+                <button
+                  type="button"
+                  :disabled="r.saving"
+                  class="rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-3 py-1 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  @click="saveRule(r)"
+                >
+                  {{ r.saving ? 'Saving…' : 'Save' }}
+                </button>
+                <button
+                  type="button"
+                  class="text-xs text-red-600 dark:text-red-400 hover:underline"
+                  @click="deleteRule(r)"
+                >
+                  Delete
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
-      <p v-else-if="loading" class="px-3 py-3 text-zinc-500">Loading…</p>
-      <p v-else class="px-3 py-3 text-zinc-500">No rules yet. The wiki falls back to <code>wiki_config.private_default</code>.</p>
+      <p v-else-if="loading" class="px-6 py-4 text-sm text-zinc-500">Loading…</p>
+      <p v-else class="px-6 py-4 text-sm text-zinc-500">
+        No rules yet. The wiki falls back to <code>wiki_config.private_default</code>.
+      </p>
     </section>
 
-    <section class="border border-zinc-200 dark:border-zinc-800 rounded-lg p-4">
-      <h2 class="text-sm font-semibold mb-3">Add a rule</h2>
-      <form class="space-y-3" @submit.prevent="createRule">
+    <form
+      class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden"
+      @submit.prevent="createRule"
+    >
+      <header class="px-6 pt-5 pb-2">
+        <h2 class="text-base font-semibold">Add a rule</h2>
+        <p class="text-xs text-zinc-500 mt-0.5">
+          Lower priority numbers win. Use globs like <code>finance/**</code> for subtrees.
+        </p>
+      </header>
+
+      <section class="px-6 pb-5 pt-3 space-y-3">
         <div class="grid gap-3 sm:grid-cols-[80px_1fr_140px]">
           <label class="block text-sm">
-            <span class="text-zinc-700 dark:text-zinc-300">Priority</span>
+            <span class="text-zinc-700 dark:text-zinc-300 font-medium">Priority</span>
             <input
               v-model.number="newRule.priority"
               type="number"
-              class="mt-1 block w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-2 text-sm"
+              class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm focus:outline-none focus:border-brand-blue"
             />
           </label>
           <label class="block text-sm">
-            <span class="text-zinc-700 dark:text-zinc-300">Pattern</span>
+            <span class="text-zinc-700 dark:text-zinc-300 font-medium">Pattern</span>
             <input
               v-model="newRule.pattern"
               required
               placeholder="finance/**"
-              class="mt-1 block w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-2 text-sm font-mono"
+              class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm font-mono focus:outline-none focus:border-brand-blue"
             />
           </label>
           <label class="block text-sm">
-            <span class="text-zinc-700 dark:text-zinc-300">Access</span>
+            <span class="text-zinc-700 dark:text-zinc-300 font-medium">Access</span>
             <select
               v-model="newRule.access"
-              class="mt-1 block w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-2 text-sm"
+              class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm focus:outline-none focus:border-brand-blue"
             >
               <option value="public">public</option>
               <option value="private">private</option>
@@ -242,30 +262,35 @@ onMounted(load)
         </div>
         <div class="grid gap-3 sm:grid-cols-2">
           <label class="block text-sm">
-            <span class="text-zinc-700 dark:text-zinc-300">Groups (for restricted)</span>
+            <span class="text-zinc-700 dark:text-zinc-300 font-medium">Groups (for restricted)</span>
             <input
               v-model="newRule.groupsText"
               :disabled="newRule.access !== 'restricted'"
               placeholder="finance, execs"
-              class="mt-1 block w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-2 text-sm font-mono disabled:opacity-50"
+              class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm font-mono focus:outline-none focus:border-brand-blue disabled:opacity-50"
             />
           </label>
           <label class="block text-sm">
-            <span class="text-zinc-700 dark:text-zinc-300">Description</span>
+            <span class="text-zinc-700 dark:text-zinc-300 font-medium">Description</span>
             <input
               v-model="newRule.description"
-              class="mt-1 block w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-2 text-sm"
+              class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm focus:outline-none focus:border-brand-blue"
             />
           </label>
         </div>
+      </section>
+
+      <div
+        class="flex items-center justify-end gap-3 px-6 py-4 bg-zinc-50 dark:bg-zinc-950/40 border-t border-zinc-200 dark:border-zinc-800"
+      >
         <button
           type="submit"
           :disabled="creating"
-          class="rounded-md bg-brand-red hover:bg-brand-red-hover text-white px-3 py-2 text-sm font-medium disabled:opacity-60"
+          class="rounded-md bg-brand-red hover:bg-brand-red-hover text-white px-4 py-1.5 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {{ creating ? 'Creating…' : 'Create rule' }}
         </button>
-      </form>
-    </section>
+      </div>
+    </form>
   </div>
 </template>
