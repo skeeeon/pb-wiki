@@ -43,13 +43,18 @@ import './composables/useTheme'
 const app = createApp(App)
 app.use(createPinia())
 
-// Eagerly load wiki_config before the router resolves the first route. The
-// router's beforeEach guard reads `require_login` from the config store to
-// decide whether to redirect anonymous users to /login — if the fetch ran
-// lazily, the first paint could leak content from a locked-down wiki for a
-// frame. wiki_config is world-readable specifically so this works for
-// anonymous visitors. (load() swallows its own errors into config.error.)
-await useConfigStore().load()
+// The router's beforeEach guard reads `require_login` from wiki_config to
+// decide whether to redirect anonymous users to /login — so the config must
+// be present before the first route resolves, or a locked-down wiki could
+// leak a frame of content. We seed synchronously from localStorage when
+// possible (covers every visit after the first) and only block on the
+// network for a truly cold start. Admin changes to wiki_config propagate
+// on the next page reload, which is acceptable for fields that change
+// roughly never.
+const config = useConfigStore()
+if (!config.loadFromStorage()) {
+  await config.load()
+}
 
 app.use(router)
 app.mount('#app')
