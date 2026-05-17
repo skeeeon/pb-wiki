@@ -28,19 +28,19 @@ func registerDocumentHooks(app *pocketbase.PocketBase) {
 	// List — filter the in-memory result set; records the user can't see
 	// silently disappear from listings.
 	app.OnRecordsListRequest("documents").BindFunc(func(e *core.RecordsListRequestEvent) error {
-		rules, err := loadRules(e.App)
+		rules, err := LoadRules(e.App)
 		if err != nil {
 			return err
 		}
-		cfg, err := loadConfigFlags(e.App)
+		cfg, err := LoadConfigFlags(e.App)
 		if err != nil {
 			return err
 		}
-		user := recordToUser(e.Auth)
+		user := RecordToUser(e.Auth)
 
 		filtered := make([]*core.Record, 0, len(e.Records))
 		for _, r := range e.Records {
-			if access.CanAccess(r.GetString("path"), user, rules, cfg.privateDefault, cfg.requireLogin) {
+			if access.CanAccess(r.GetString("path"), user, rules, cfg.PrivateDefault, cfg.RequireLogin) {
 				filtered = append(filtered, r)
 			}
 		}
@@ -73,13 +73,13 @@ func registerDocumentHooks(app *pocketbase.PocketBase) {
 // canAccessRecord loads rules + config and evaluates access for the given
 // auth record against the given document record's path.
 func canAccessRecord(app core.App, auth *core.Record, doc *core.Record) (bool, error) {
-	rules, err := loadRules(app)
+	rules, err := LoadRules(app)
 	if err != nil {
 		return false, err
 	}
-	cfg, err := loadConfigFlags(app)
+	cfg, err := LoadConfigFlags(app)
 	if err != nil {
 		return false, err
 	}
-	return access.CanAccess(doc.GetString("path"), recordToUser(auth), rules, cfg.privateDefault, cfg.requireLogin), nil
+	return access.CanAccess(doc.GetString("path"), RecordToUser(auth), rules, cfg.PrivateDefault, cfg.RequireLogin), nil
 }

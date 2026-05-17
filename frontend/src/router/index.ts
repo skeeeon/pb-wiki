@@ -40,6 +40,15 @@ const router = createRouter({
       props: (route) => ({ path: joinPath(route.params.path), mode: 'edit' as const }),
     },
     {
+      // Anyone who can view a doc can see its history — the backend enforces
+      // access via internal/access, mirroring the doc view rules. We don't
+      // gate on role here.
+      path: '/history/:path(.*)*',
+      name: 'doc-history',
+      component: () => import('@/views/DocHistory.vue'),
+      props: (route) => ({ path: joinPath(route.params.path) }),
+    },
+    {
       path: '/new/:path(.*)*',
       name: 'doc-new',
       component: () => import('@/views/DocEdit.vue'),
