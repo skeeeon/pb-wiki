@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, toRef } from 'vue'
+import { computed, ref, toRef, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import { useDoc } from '@/composables/useDoc'
@@ -13,11 +13,6 @@ const props = defineProps<{ path: string }>()
 const path = toRef(props, 'path')
 
 const { revisions, loading, notFound, error } = useDocHistory(() => path.value)
-
-// Current doc — we diff each revision against the *current* body so users can
-// see how far the page has drifted since that point in time, which is more
-// useful than "what changed at the moment of that edit." For the latest
-// revision the diff naturally collapses to no changes.
 const { doc: currentDoc } = useDoc(() => path.value)
 const currentBody = computed(() => currentDoc.value?.body ?? '')
 
@@ -25,21 +20,28 @@ useDocumentTitle(() => `History — ${path.value || 'home'}`)
 
 const docTo = computed(() => (path.value ? `/doc/${path.value}` : '/'))
 
-// Per-row UI state: which revisions are open, and which content view each one
-// is showing. Default view is the diff vs current.
-type ViewMode = 'diff' | 'rendered' | 'raw'
-const expanded = reactive<Record<string, boolean>>({})
-const viewMode = reactive<Record<string, ViewMode>>({})
+// View mode for the right preview pane.
+type ViewMode = 'rendered' | 'diff-edit' | 'diff-current' | 'raw'
+const mode = ref<ViewMode>('diff-edit')
 
-function toggle(id: string) {
-  expanded[id] = !expanded[id]
-}
-function setMode(id: string, mode: ViewMode) {
-  viewMode[id] = mode
-}
-function modeOf(id: string): ViewMode {
-  return viewMode[id] ?? 'diff'
-}
+// Which revision is currently selected. Defaults to the newest one so the
+// preview shows the most recent edit on load. Reactively snaps to the first
+// revision whenever the list refreshes.
+const selectedId = ref<string | null>(null)
+watch(
+  revisions,
+  (list) => {
+    if (list.length === 0) {
+      selectedId.value = null
+    } else if (!list.some((r) => r.id === selectedId.value)) {
+      selectedId.value = list[0].id
+    }
+  },
+  { immediate: true },
+)
+const selected = computed<Revision | null>(
+  () => revisions.value.find((r) => r.id === selectedId.value) ?? null,
+)
 
 // Pull `body`/`title` out of a before/after snapshot. Snapshots mirror the
 // documents row but we don't trust the shape — older revisions may have used
@@ -115,34 +117,62 @@ function lineDiff(before: string, after: string): DiffLine[] {
   return out
 }
 
-// Diff *this revision* against the current doc body. `-` lines are what this
-// revision had that's no longer present; `+` lines are what's been added
-// since.
-function diffVsCurrent(r: Revision): DiffLine[] {
+// `diff-edit` compares this revision against its own before — i.e. what
+// changed at the moment of this edit. `diff-current` compares it against the
+// live doc body — i.e. what's drifted since.
+function diffEdit(r: Revision): DiffLine[] {
+  return lineDiff(bodyOf(r.before), bodyOf(r.after))
+}
+function diffCurrent(r: Revision): DiffLine[] {
   return lineDiff(bodyOf(r.after), currentBody.value)
 }
-
-function diffStats(r: Revision): { added: number; removed: number } {
-  let added = 0
-  let removed = 0
-  for (const l of diffVsCurrent(r)) {
+function statsOf(lines: DiffLine[]): { added: number; removed: number } {
+  let added = 0, removed = 0
+  for (const l of lines) {
     if (l.kind === 'add') added++
     else if (l.kind === 'del') removed++
   }
   return { added, removed }
 }
-
-function renderedHtml(r: Revision): string {
-  return renderDoc(bodyOf(r.after)).html
+// Stats shown in the left-rail row — always "what this edit changed", since
+// that's the signal most useful for picking which revision to look at.
+function editStats(r: Revision) {
+  return statsOf(diffEdit(r))
 }
+
+const renderedHtml = computed(() =>
+  selected.value ? renderDoc(bodyOf(selected.value.after)).html : '',
+)
+const previewDiff = computed<DiffLine[]>(() => {
+  if (!selected.value) return []
+  if (mode.value === 'diff-edit') return diffEdit(selected.value)
+  if (mode.value === 'diff-current') return diffCurrent(selected.value)
+  return []
+})
+const previewRaw = computed(() => (selected.value ? bodyOf(selected.value.after) : ''))
+
+// On small screens, focusing a revision should scroll the preview into view —
+// without it, tapping a row gives no visible feedback. Triggered on mode +
+// selection changes since both can fire from row clicks.
+const previewEl = ref<HTMLElement | null>(null)
+watch([selectedId, mode], () => {
+  if (typeof window === 'undefined') return
+  if (window.matchMedia('(min-width: 1024px)').matches) return
+  previewEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+})
 </script>
 
 <template>
-  <div class="max-w-5xl mx-auto space-y-4">
+  <div class="max-w-6xl mx-auto space-y-4">
     <Breadcrumbs :path="path" />
 
     <header class="flex items-baseline justify-between gap-4 flex-wrap">
-      <h1 class="text-3xl font-semibold">History</h1>
+      <div>
+        <h1 class="text-3xl font-semibold">History</h1>
+        <p class="text-xs text-zinc-500 mt-1">
+          <code>{{ path || '/' }}</code>
+        </p>
+      </div>
       <RouterLink
         :to="docTo"
         class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm"
@@ -150,10 +180,6 @@ function renderedHtml(r: Revision): string {
         ← Back to page
       </RouterLink>
     </header>
-
-    <p class="text-xs text-zinc-500">
-      <code>{{ path || '/' }}</code> — diffs are shown against the current version.
-    </p>
 
     <div v-if="loading" class="text-zinc-500 text-sm">Loading…</div>
 
@@ -174,130 +200,178 @@ function renderedHtml(r: Revision): string {
       edited.
     </section>
 
-    <ul v-else class="divide-y divide-zinc-200 dark:divide-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded">
-      <li v-for="r in revisions" :key="r.id" class="px-3 py-2">
-        <button
-          type="button"
-          class="flex items-center justify-between w-full text-left gap-3"
-          @click="toggle(r.id)"
+    <!-- Two-pane layout: revision list on the left, preview on the right.
+         Stacks vertically below lg so mobile users see the list, tap a
+         revision, and scroll naturally into the preview. -->
+    <div
+      v-else
+      class="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] items-start"
+    >
+      <!-- Left rail: revision list. Sticky on lg+ so it doesn't scroll out of
+           view while the preview pane scrolls. -->
+      <aside class="lg:sticky lg:top-4">
+        <ul
+          class="divide-y divide-zinc-200 dark:divide-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded max-h-[calc(100vh-8rem)] overflow-y-auto"
         >
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span
-                class="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded"
-                :class="
-                  r.event_type === 'create'
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200'
-                    : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
-                "
-              >
-                {{ r.event_type }}
-              </span>
-              <time class="text-sm text-zinc-700 dark:text-zinc-300" :title="formatTime(r.timestamp)">
-                {{ relativeTime(r.timestamp) }}
-              </time>
-              <span class="text-xs text-zinc-500">by {{ editorOf(r) }}</span>
+          <li v-for="r in revisions" :key="r.id">
+            <button
+              type="button"
+              class="w-full text-left px-3 py-2 flex flex-col gap-1 transition-colors"
+              :class="
+                selectedId === r.id
+                  ? 'bg-brand-blue/10 dark:bg-brand-blue-dark/15 border-l-2 border-brand-blue dark:border-brand-blue-dark'
+                  : 'border-l-2 border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800'
+              "
+              @click="selectedId = r.id"
+            >
+              <div class="flex items-center gap-2 flex-wrap">
+                <span
+                  class="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0"
+                  :class="
+                    r.event_type === 'create'
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200'
+                      : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
+                  "
+                >
+                  {{ r.event_type }}
+                </span>
+                <time
+                  class="text-sm text-zinc-700 dark:text-zinc-300 truncate"
+                  :title="formatTime(r.timestamp)"
+                >
+                  {{ relativeTime(r.timestamp) }}
+                </time>
+              </div>
+              <div class="flex items-center justify-between text-xs text-zinc-500 gap-2">
+                <span class="truncate">{{ editorOf(r) }}</span>
+                <span class="shrink-0 font-mono">
+                  <span class="text-emerald-700 dark:text-emerald-400">+{{ editStats(r).added }}</span>
+                  <span class="mx-0.5">/</span>
+                  <span class="text-red-700 dark:text-red-400">−{{ editStats(r).removed }}</span>
+                </span>
+              </div>
               <span
                 v-if="titleOf(r.after) && titleOf(r.before) && titleOf(r.before) !== titleOf(r.after)"
-                class="text-xs text-amber-700 dark:text-amber-300"
+                class="text-[11px] text-amber-700 dark:text-amber-300 truncate"
               >
                 title: {{ titleOf(r.before) }} → {{ titleOf(r.after) }}
               </span>
-            </div>
-            <div class="text-xs text-zinc-500 mt-0.5">
-              vs current: +{{ diffStats(r).added }} / −{{ diffStats(r).removed }}
-            </div>
-          </div>
-          <svg
-            class="w-4 h-4 text-zinc-400 shrink-0 transition-transform"
-            :class="expanded[r.id] ? 'rotate-90' : ''"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </button>
-
-        <div v-if="expanded[r.id]" class="mt-2 space-y-2">
-          <!-- View mode toggle: diff against current, rendered HTML of this
-               revision, or raw markdown source. -->
-          <div
-            class="inline-flex rounded border border-zinc-300 dark:border-zinc-700 overflow-hidden text-xs"
-            role="tablist"
-          >
-            <button
-              type="button"
-              role="tab"
-              :aria-selected="modeOf(r.id) === 'diff'"
-              class="px-2 py-1 transition-colors"
-              :class="
-                modeOf(r.id) === 'diff'
-                  ? 'bg-zinc-200 dark:bg-zinc-700 font-medium'
-                  : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
-              "
-              @click="setMode(r.id, 'diff')"
-            >
-              Diff vs current
             </button>
-            <button
-              type="button"
-              role="tab"
-              :aria-selected="modeOf(r.id) === 'rendered'"
-              class="px-2 py-1 border-l border-zinc-300 dark:border-zinc-700 transition-colors"
-              :class="
-                modeOf(r.id) === 'rendered'
-                  ? 'bg-zinc-200 dark:bg-zinc-700 font-medium'
-                  : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
-              "
-              @click="setMode(r.id, 'rendered')"
-            >
-              Rendered
-            </button>
-            <button
-              type="button"
-              role="tab"
-              :aria-selected="modeOf(r.id) === 'raw'"
-              class="px-2 py-1 border-l border-zinc-300 dark:border-zinc-700 transition-colors"
-              :class="
-                modeOf(r.id) === 'raw'
-                  ? 'bg-zinc-200 dark:bg-zinc-700 font-medium'
-                  : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
-              "
-              @click="setMode(r.id, 'raw')"
-            >
-              Raw
-            </button>
-          </div>
+          </li>
+        </ul>
+      </aside>
 
-          <pre
-            v-if="modeOf(r.id) === 'diff'"
-            class="text-xs leading-snug font-mono whitespace-pre-wrap overflow-x-auto bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded p-2"
-          ><template v-for="(line, idx) in diffVsCurrent(r)" :key="idx"><span
-                v-if="line.kind === 'add'"
-                class="block bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200"
-              >+ {{ line.text }}</span><span
-                v-else-if="line.kind === 'del'"
-                class="block bg-red-50 dark:bg-red-950/50 text-red-900 dark:text-red-200"
-              >− {{ line.text }}</span><span
-                v-else
-                class="block text-zinc-600 dark:text-zinc-400"
-              >  {{ line.text }}</span></template></pre>
-
-          <div
-            v-else-if="modeOf(r.id) === 'rendered'"
-            class="rounded border border-zinc-200 dark:border-zinc-800 p-3 bg-white dark:bg-zinc-900"
+      <!-- Right pane: preview with mode toggle. -->
+      <div ref="previewEl" class="space-y-3 min-w-0">
+        <div
+          class="inline-flex rounded border border-zinc-300 dark:border-zinc-700 overflow-hidden text-xs"
+          role="tablist"
+        >
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="mode === 'rendered'"
+            class="px-2.5 py-1.5 transition-colors"
+            :class="
+              mode === 'rendered'
+                ? 'bg-zinc-200 dark:bg-zinc-700 font-medium'
+                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
+            "
+            @click="mode = 'rendered'"
           >
-            <MarkdownView :html="renderedHtml(r)" />
-          </div>
-
-          <pre
-            v-else
-            class="text-xs leading-snug font-mono whitespace-pre-wrap overflow-x-auto bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded p-2 text-zinc-700 dark:text-zinc-300"
-          >{{ bodyOf(r.after) }}</pre>
+            Rendered
+          </button>
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="mode === 'diff-edit'"
+            class="px-2.5 py-1.5 border-l border-zinc-300 dark:border-zinc-700 transition-colors"
+            :class="
+              mode === 'diff-edit'
+                ? 'bg-zinc-200 dark:bg-zinc-700 font-medium'
+                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
+            "
+            @click="mode = 'diff-edit'"
+          >
+            Diff this edit
+          </button>
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="mode === 'diff-current'"
+            class="px-2.5 py-1.5 border-l border-zinc-300 dark:border-zinc-700 transition-colors"
+            :class="
+              mode === 'diff-current'
+                ? 'bg-zinc-200 dark:bg-zinc-700 font-medium'
+                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
+            "
+            @click="mode = 'diff-current'"
+          >
+            Diff vs current
+          </button>
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="mode === 'raw'"
+            class="px-2.5 py-1.5 border-l border-zinc-300 dark:border-zinc-700 transition-colors"
+            :class="
+              mode === 'raw'
+                ? 'bg-zinc-200 dark:bg-zinc-700 font-medium'
+                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
+            "
+            @click="mode = 'raw'"
+          >
+            Raw
+          </button>
         </div>
-      </li>
-    </ul>
+
+        <div v-if="selected" class="space-y-2">
+          <div class="text-xs text-zinc-500">
+            <time :title="formatTime(selected.timestamp)">{{ relativeTime(selected.timestamp) }}</time>
+            · by {{ editorOf(selected) }}
+            · <code>{{ selected.event_type }}</code>
+          </div>
+
+          <div
+            v-if="mode === 'rendered'"
+            class="rounded border border-zinc-200 dark:border-zinc-800 p-4 bg-white dark:bg-zinc-900"
+          >
+            <MarkdownView :html="renderedHtml" />
+          </div>
+
+          <pre
+            v-else-if="mode === 'raw'"
+            class="text-xs leading-snug font-mono whitespace-pre-wrap overflow-x-auto bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded p-3 text-zinc-700 dark:text-zinc-300"
+          >{{ previewRaw }}</pre>
+
+          <template v-else>
+            <p
+              v-if="previewDiff.every((l) => l.kind === 'eq')"
+              class="text-xs italic text-zinc-500 px-1"
+            >
+              <template v-if="mode === 'diff-current'">
+                This revision matches the current version — no drift since.
+              </template>
+              <template v-else>
+                No body changes in this edit (title or other metadata may have changed).
+              </template>
+            </p>
+            <pre
+              v-else
+              class="text-xs leading-snug font-mono whitespace-pre-wrap overflow-x-auto bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded p-3"
+            ><template v-for="(line, idx) in previewDiff" :key="idx"><span
+                  v-if="line.kind === 'add'"
+                  class="block bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200"
+                >+ {{ line.text }}</span><span
+                  v-else-if="line.kind === 'del'"
+                  class="block bg-red-50 dark:bg-red-950/50 text-red-900 dark:text-red-200"
+                >− {{ line.text }}</span><span
+                  v-else
+                  class="block text-zinc-600 dark:text-zinc-400"
+                >  {{ line.text }}</span></template></pre>
+          </template>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
