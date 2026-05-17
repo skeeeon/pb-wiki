@@ -43,6 +43,13 @@ const selected = computed<Revision | null>(
   () => revisions.value.find((r) => r.id === selectedId.value) ?? null,
 )
 
+// The newest revision in the list is the live state of the doc — flag it so
+// the UI can mark the row and adjust the "diff vs current" copy.
+const latestId = computed<string | null>(() =>
+  revisions.value.length > 0 ? revisions.value[0].id : null,
+)
+const isLatestSelected = computed(() => selected.value?.id === latestId.value)
+
 // Pull `body`/`title` out of a before/after snapshot. Snapshots mirror the
 // documents row but we don't trust the shape — older revisions may have used
 // different fields if the schema has evolved.
@@ -117,14 +124,31 @@ function lineDiff(before: string, after: string): DiffLine[] {
   return out
 }
 
-// `diff-edit` compares this revision against its own before — i.e. what
-// changed at the moment of this edit. `diff-current` compares it against the
-// live doc body — i.e. what's drifted since.
-function diffEdit(r: Revision): DiffLine[] {
-  return lineDiff(bodyOf(r.before), bodyOf(r.after))
+// pb-audit's success `update` event doesn't carry a before snapshot (only the
+// matching `update_request` event does, which we don't query). So we
+// synthesize the "before" as the *previous* revision's after — that's the
+// state the doc was in immediately before this edit. The oldest revision has
+// no prior state, which matches its `create` semantics.
+function effectiveBefore(r: Revision): string {
+  const idx = revisions.value.findIndex((x) => x.id === r.id)
+  if (idx < 0) return ''
+  const older = revisions.value[idx + 1] // list is sorted newest-first
+  if (older) return bodyOf(older.after)
+  // Fallback: if pb-audit *did* capture before_changes (request events,
+  // backfilled data, etc.), prefer that over treating it as empty.
+  return bodyOf(r.before)
 }
+
+// `diff-edit` shows what changed AT this edit: prior-state → this revision.
+function diffEdit(r: Revision): DiffLine[] {
+  return lineDiff(effectiveBefore(r), bodyOf(r.after))
+}
+// `diff-current` is oriented from the perspective of someone reading the old
+// revision: + lines are present *in this revision* (extra here, since
+// removed); − lines are present *in current* (added since this revision).
+// Reads naturally as "what's different in this old version vs the live page".
 function diffCurrent(r: Revision): DiffLine[] {
-  return lineDiff(bodyOf(r.after), currentBody.value)
+  return lineDiff(currentBody.value, bodyOf(r.after))
 }
 function statsOf(lines: DiffLine[]): { added: number; removed: number } {
   let added = 0, removed = 0
@@ -234,6 +258,12 @@ watch([selectedId, mode], () => {
                   "
                 >
                   {{ r.event_type }}
+                </span>
+                <span
+                  v-if="r.id === latestId"
+                  class="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0 bg-brand-blue/15 text-brand-blue dark:bg-brand-blue-dark/20 dark:text-brand-blue-dark"
+                >
+                  current
                 </span>
                 <time
                   class="text-sm text-zinc-700 dark:text-zinc-300 truncate"
@@ -350,25 +380,39 @@ watch([selectedId, mode], () => {
               class="text-xs italic text-zinc-500 px-1"
             >
               <template v-if="mode === 'diff-current'">
-                This revision matches the current version — no drift since.
+                <template v-if="isLatestSelected">This is the current version.</template>
+                <template v-else>This revision matches the current version — no drift since.</template>
               </template>
               <template v-else>
                 No body changes in this edit (title or other metadata may have changed).
               </template>
             </p>
-            <pre
-              v-else
-              class="text-xs leading-snug font-mono whitespace-pre-wrap overflow-x-auto bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded p-3"
-            ><template v-for="(line, idx) in previewDiff" :key="idx"><span
-                  v-if="line.kind === 'add'"
-                  class="block bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200"
-                >+ {{ line.text }}</span><span
-                  v-else-if="line.kind === 'del'"
-                  class="block bg-red-50 dark:bg-red-950/50 text-red-900 dark:text-red-200"
-                >− {{ line.text }}</span><span
-                  v-else
-                  class="block text-zinc-600 dark:text-zinc-400"
-                >  {{ line.text }}</span></template></pre>
+            <template v-else>
+              <p class="text-[11px] text-zinc-500 px-1">
+                <template v-if="mode === 'diff-edit'">
+                  <span class="text-emerald-700 dark:text-emerald-400">+ added in this edit</span>
+                  ·
+                  <span class="text-red-700 dark:text-red-400">− removed in this edit</span>
+                </template>
+                <template v-else>
+                  <span class="text-emerald-700 dark:text-emerald-400">+ in this revision</span>
+                  ·
+                  <span class="text-red-700 dark:text-red-400">− in current</span>
+                </template>
+              </p>
+              <pre
+                class="text-xs leading-snug font-mono whitespace-pre-wrap overflow-x-auto bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded p-3"
+              ><template v-for="(line, idx) in previewDiff" :key="idx"><span
+                    v-if="line.kind === 'add'"
+                    class="block bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200"
+                  >+ {{ line.text }}</span><span
+                    v-else-if="line.kind === 'del'"
+                    class="block bg-red-50 dark:bg-red-950/50 text-red-900 dark:text-red-200"
+                  >− {{ line.text }}</span><span
+                    v-else
+                    class="block text-zinc-600 dark:text-zinc-400"
+                  >  {{ line.text }}</span></template></pre>
+            </template>
           </template>
         </div>
       </div>
