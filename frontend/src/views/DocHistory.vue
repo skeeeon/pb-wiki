@@ -1,41 +1,60 @@
 <script setup lang="ts">
-import { computed, ref, toRef } from 'vue'
+import { computed, reactive, toRef } from 'vue'
 import { RouterLink } from 'vue-router'
 
+import { useDoc } from '@/composables/useDoc'
 import { useDocHistory, type Revision } from '@/composables/useDocHistory'
 import { useDocumentTitle } from '@/composables/useDocumentTitle'
+import { renderDoc } from '@/lib/markdown'
 import Breadcrumbs from '@/components/Breadcrumbs.vue'
+import MarkdownView from '@/components/MarkdownView.vue'
 
 const props = defineProps<{ path: string }>()
 const path = toRef(props, 'path')
 
 const { revisions, loading, notFound, error } = useDocHistory(() => path.value)
 
+// Current doc — we diff each revision against the *current* body so users can
+// see how far the page has drifted since that point in time, which is more
+// useful than "what changed at the moment of that edit." For the latest
+// revision the diff naturally collapses to no changes.
+const { doc: currentDoc } = useDoc(() => path.value)
+const currentBody = computed(() => currentDoc.value?.body ?? '')
+
 useDocumentTitle(() => `History — ${path.value || 'home'}`)
 
 const docTo = computed(() => (path.value ? `/doc/${path.value}` : '/'))
 
-const expanded = ref<string | null>(null)
+// Per-row UI state: which revisions are open, and which content view each one
+// is showing. Default view is the diff vs current.
+type ViewMode = 'diff' | 'rendered' | 'raw'
+const expanded = reactive<Record<string, boolean>>({})
+const viewMode = reactive<Record<string, ViewMode>>({})
+
 function toggle(id: string) {
-  expanded.value = expanded.value === id ? null : id
+  expanded[id] = !expanded[id]
+}
+function setMode(id: string, mode: ViewMode) {
+  viewMode[id] = mode
+}
+function modeOf(id: string): ViewMode {
+  return viewMode[id] ?? 'diff'
 }
 
-// Pull the body string out of a before/after snapshot. The snapshot mirrors
-// the documents row, but we treat any field absence as empty so missing
-// `before` (on a `create` event) doesn't break the diff.
+// Pull `body`/`title` out of a before/after snapshot. Snapshots mirror the
+// documents row but we don't trust the shape — older revisions may have used
+// different fields if the schema has evolved.
 function bodyOf(snapshot: Revision['before' | 'after']): string {
   if (!snapshot) return ''
   const v = (snapshot as Record<string, unknown>).body
   return typeof v === 'string' ? v : ''
 }
-
 function titleOf(snapshot: Revision['before' | 'after']): string {
   if (!snapshot) return ''
   const v = (snapshot as Record<string, unknown>).title
   return typeof v === 'string' ? v : ''
 }
 
-// Local-date format mirroring the convention in DocView.
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleString()
 }
@@ -68,7 +87,6 @@ function lineDiff(before: string, after: string): DiffLine[] {
   const n = a.length
   const m = b.length
 
-  // LCS table
   const lcs: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0))
   for (let i = n - 1; i >= 0; i--) {
     for (let j = m - 1; j >= 0; j--) {
@@ -97,19 +115,25 @@ function lineDiff(before: string, after: string): DiffLine[] {
   return out
 }
 
-function diffFor(r: Revision): DiffLine[] {
-  return lineDiff(bodyOf(r.before), bodyOf(r.after))
+// Diff *this revision* against the current doc body. `-` lines are what this
+// revision had that's no longer present; `+` lines are what's been added
+// since.
+function diffVsCurrent(r: Revision): DiffLine[] {
+  return lineDiff(bodyOf(r.after), currentBody.value)
 }
 
 function diffStats(r: Revision): { added: number; removed: number } {
-  const d = diffFor(r)
   let added = 0
   let removed = 0
-  for (const l of d) {
+  for (const l of diffVsCurrent(r)) {
     if (l.kind === 'add') added++
     else if (l.kind === 'del') removed++
   }
   return { added, removed }
+}
+
+function renderedHtml(r: Revision): string {
+  return renderDoc(bodyOf(r.after)).html
 }
 </script>
 
@@ -128,7 +152,7 @@ function diffStats(r: Revision): { added: number; removed: number } {
     </header>
 
     <p class="text-xs text-zinc-500">
-      <code>{{ path || '/' }}</code>
+      <code>{{ path || '/' }}</code> — diffs are shown against the current version.
     </p>
 
     <div v-if="loading" class="text-zinc-500 text-sm">Loading…</div>
@@ -181,12 +205,12 @@ function diffStats(r: Revision): { added: number; removed: number } {
               </span>
             </div>
             <div class="text-xs text-zinc-500 mt-0.5">
-              +{{ diffStats(r).added }} / −{{ diffStats(r).removed }}
+              vs current: +{{ diffStats(r).added }} / −{{ diffStats(r).removed }}
             </div>
           </div>
           <svg
             class="w-4 h-4 text-zinc-400 shrink-0 transition-transform"
-            :class="expanded === r.id ? 'rotate-90' : ''"
+            :class="expanded[r.id] ? 'rotate-90' : ''"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -196,19 +220,83 @@ function diffStats(r: Revision): { added: number; removed: number } {
           </svg>
         </button>
 
-        <pre
-          v-if="expanded === r.id"
-          class="mt-2 text-xs leading-snug font-mono whitespace-pre-wrap overflow-x-auto bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded p-2"
-        ><template v-for="(line, idx) in diffFor(r)" :key="idx"><span
-              v-if="line.kind === 'add'"
-              class="block bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200"
-            >+ {{ line.text }}</span><span
-              v-else-if="line.kind === 'del'"
-              class="block bg-red-50 dark:bg-red-950/50 text-red-900 dark:text-red-200"
-            >− {{ line.text }}</span><span
-              v-else
-              class="block text-zinc-600 dark:text-zinc-400"
-            >  {{ line.text }}</span></template></pre>
+        <div v-if="expanded[r.id]" class="mt-2 space-y-2">
+          <!-- View mode toggle: diff against current, rendered HTML of this
+               revision, or raw markdown source. -->
+          <div
+            class="inline-flex rounded border border-zinc-300 dark:border-zinc-700 overflow-hidden text-xs"
+            role="tablist"
+          >
+            <button
+              type="button"
+              role="tab"
+              :aria-selected="modeOf(r.id) === 'diff'"
+              class="px-2 py-1 transition-colors"
+              :class="
+                modeOf(r.id) === 'diff'
+                  ? 'bg-zinc-200 dark:bg-zinc-700 font-medium'
+                  : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
+              "
+              @click="setMode(r.id, 'diff')"
+            >
+              Diff vs current
+            </button>
+            <button
+              type="button"
+              role="tab"
+              :aria-selected="modeOf(r.id) === 'rendered'"
+              class="px-2 py-1 border-l border-zinc-300 dark:border-zinc-700 transition-colors"
+              :class="
+                modeOf(r.id) === 'rendered'
+                  ? 'bg-zinc-200 dark:bg-zinc-700 font-medium'
+                  : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
+              "
+              @click="setMode(r.id, 'rendered')"
+            >
+              Rendered
+            </button>
+            <button
+              type="button"
+              role="tab"
+              :aria-selected="modeOf(r.id) === 'raw'"
+              class="px-2 py-1 border-l border-zinc-300 dark:border-zinc-700 transition-colors"
+              :class="
+                modeOf(r.id) === 'raw'
+                  ? 'bg-zinc-200 dark:bg-zinc-700 font-medium'
+                  : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
+              "
+              @click="setMode(r.id, 'raw')"
+            >
+              Raw
+            </button>
+          </div>
+
+          <pre
+            v-if="modeOf(r.id) === 'diff'"
+            class="text-xs leading-snug font-mono whitespace-pre-wrap overflow-x-auto bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded p-2"
+          ><template v-for="(line, idx) in diffVsCurrent(r)" :key="idx"><span
+                v-if="line.kind === 'add'"
+                class="block bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200"
+              >+ {{ line.text }}</span><span
+                v-else-if="line.kind === 'del'"
+                class="block bg-red-50 dark:bg-red-950/50 text-red-900 dark:text-red-200"
+              >− {{ line.text }}</span><span
+                v-else
+                class="block text-zinc-600 dark:text-zinc-400"
+              >  {{ line.text }}</span></template></pre>
+
+          <div
+            v-else-if="modeOf(r.id) === 'rendered'"
+            class="rounded border border-zinc-200 dark:border-zinc-800 p-3 bg-white dark:bg-zinc-900"
+          >
+            <MarkdownView :html="renderedHtml(r)" />
+          </div>
+
+          <pre
+            v-else
+            class="text-xs leading-snug font-mono whitespace-pre-wrap overflow-x-auto bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded p-2 text-zinc-700 dark:text-zinc-300"
+          >{{ bodyOf(r.after) }}</pre>
+        </div>
       </li>
     </ul>
   </div>
