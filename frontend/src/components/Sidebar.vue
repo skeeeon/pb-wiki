@@ -20,6 +20,8 @@ import {
 import { buildTree, type TreeNode } from './sidebarTree'
 import SidebarTreeItem from './SidebarTreeItem.vue'
 
+const emit = defineEmits<{ close: [] }>()
+
 const auth = useAuthStore()
 const config = useConfigStore()
 const docsStore = useDocsStore()
@@ -97,21 +99,35 @@ function toggleExpand(path: string) {
           <img src="/logo.svg" :alt="config.config?.title || 'pb-wiki'" class="h-12 block dark:hidden" />
           <img src="/logo-dark.svg" :alt="config.config?.title || 'pb-wiki'" class="h-12 hidden dark:block" />
         </RouterLink>
-        <button
-          type="button"
-          class="shrink-0 p-1.5 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-          :title="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
-          :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
-          @click="toggleTheme"
-        >
-          <svg v-if="theme === 'dark'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-          </svg>
-          <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-          </svg>
-        </button>
+        <div class="flex items-center gap-1">
+          <button
+            type="button"
+            class="shrink-0 p-2 md:p-1.5 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            :title="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+            :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+            @click="toggleTheme"
+          >
+            <svg v-if="theme === 'dark'" class="w-5 h-5 md:w-4 md:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+            </svg>
+            <svg v-else class="w-5 h-5 md:w-4 md:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          </button>
+          <!-- Close button — only on mobile, when the sidebar is acting as a drawer. -->
+          <button
+            type="button"
+            class="md:hidden shrink-0 p-2 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            aria-label="Close menu"
+            @click="emit('close')"
+          >
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
       <h1 v-if="config.config?.title" class="text-base font-semibold leading-tight">
         {{ config.config.title }}
@@ -132,7 +148,7 @@ function toggleExpand(path: string) {
           v-model="q"
           type="search"
           placeholder="Search docs…"
-          class="w-full pl-8 pr-2 py-1.5 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-sm focus:outline-none focus:border-brand-blue"
+          class="w-full pl-8 pr-2 py-2 md:py-1.5 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-base md:text-sm focus:outline-none focus:border-brand-blue"
         />
       </div>
     </div>

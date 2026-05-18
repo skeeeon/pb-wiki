@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { onMounted, computed, ref, watch } from 'vue'
+import { onMounted, onBeforeUnmount, computed, ref, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 
 import { useConfigStore } from '@/stores/config'
+import { useDocsStore } from '@/stores/docs'
 import { useDocumentTitle } from '@/composables/useDocumentTitle'
 import { useTheme } from '@/composables/useTheme'
 import Sidebar from '@/components/Sidebar.vue'
 
 const config = useConfigStore()
+const docsStore = useDocsStore()
 const route = useRoute()
 const { theme, toggle: toggleTheme } = useTheme()
 
@@ -23,11 +25,54 @@ watch(
   () => route.fullPath,
   () => {
     mobileOpen.value = false
+    // After navigation a scroll event won't necessarily fire (e.g. landing
+    // at y=0 on the new page), so re-evaluate the scrolled flag explicitly.
+    scrolled.value = window.scrollY > 80
   },
 )
 
+// Escape closes the drawer; matches the usual modal/menu convention.
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && mobileOpen.value) mobileOpen.value = false
+}
+
+// Body scroll lock while the drawer is open — otherwise touch-scrolling
+// over the backdrop drags the page behind it.
+watch(mobileOpen, (open) => {
+  document.body.style.overflow = open ? 'hidden' : ''
+})
+
+// Current page title for the mobile top bar — derived from the docs store
+// rather than a separate fetch. Empty for non-doc routes.
+const currentDocTitle = computed(() => {
+  let path: string | null = null
+  if (route.name === 'home') path = ''
+  else if (route.name === 'doc-view') {
+    const p = route.params.path
+    path = Array.isArray(p) ? p.join('/') : typeof p === 'string' ? p : ''
+  }
+  if (path === null) return ''
+  const doc = docsStore.list.find((d) => d.path === path)
+  return doc?.title || (path === '' ? 'Home' : path.split('/').pop() || '')
+})
+
+// Show the doc title in the mobile top bar only once the user has scrolled
+// past the heading — keeps the bar uncluttered at the top of the page.
+const scrolled = ref(false)
+function onScroll() {
+  scrolled.value = window.scrollY > 80
+}
+
 onMounted(() => {
   config.load()
+  window.addEventListener('keydown', onKeydown)
+  window.addEventListener('scroll', onScroll, { passive: true })
+  onScroll()
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('scroll', onScroll)
+  document.body.style.overflow = ''
 })
 </script>
 
@@ -53,9 +98,25 @@ onMounted(() => {
           <line x1="3" y1="18" x2="21" y2="18" />
         </svg>
       </button>
-      <span class="flex-1 min-w-0 text-base font-semibold truncate">
-        {{ config.config?.title || 'pb-wiki' }}
-      </span>
+      <!-- Title swap: site title at rest, current page title once scrolled
+           past the heading. The two are stacked and cross-faded so the bar
+           height stays put. -->
+      <div class="relative flex-1 min-w-0 h-6">
+        <span
+          class="absolute inset-0 text-base font-semibold truncate transition-opacity duration-150"
+          :class="scrolled && currentDocTitle ? 'opacity-0' : 'opacity-100'"
+          :aria-hidden="scrolled && !!currentDocTitle"
+        >
+          {{ config.config?.title || 'pb-wiki' }}
+        </span>
+        <span
+          class="absolute inset-0 text-base font-semibold truncate transition-opacity duration-150"
+          :class="scrolled && currentDocTitle ? 'opacity-100' : 'opacity-0'"
+          :aria-hidden="!(scrolled && currentDocTitle)"
+        >
+          {{ currentDocTitle }}
+        </span>
+      </div>
       <button
         type="button"
         class="shrink-0 p-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -90,7 +151,7 @@ onMounted(() => {
              -translate-x-full md:translate-x-0"
       :class="{ 'translate-x-0': mobileOpen }"
     >
-      <Sidebar />
+      <Sidebar @close="mobileOpen = false" />
     </aside>
 
     <!-- No overflow-x on <main>: setting it would make main a scroll

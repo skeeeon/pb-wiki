@@ -32,16 +32,19 @@ const isActive = computed(
       :style="{ paddingLeft: 4 + depth * 12 + 'px' }"
     >
       <!-- Chevron toggle — only rendered when the node has children; otherwise
-           a 20px spacer keeps the title aligned with siblings that do. -->
+           a spacer keeps the title aligned with siblings that do. The button
+           is finger-sized (w-9 h-9, ~36px) with a small icon centered inside,
+           so the row stays comfortable to tap without looking chunky. -->
       <button
         v-if="hasChildren"
         type="button"
-        class="shrink-0 w-5 h-6 flex items-center justify-center text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+        class="shrink-0 w-9 h-9 flex items-center justify-center text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
         :aria-label="isOpen ? 'Collapse' : 'Expand'"
+        :aria-expanded="isOpen"
         @click="onToggle(node.fullPath)"
       >
         <svg
-          class="w-3 h-3 transition-transform"
+          class="w-3.5 h-3.5 transition-transform"
           :class="{ 'rotate-90': isOpen }"
           viewBox="0 0 24 24"
           fill="none"
@@ -53,11 +56,11 @@ const isActive = computed(
           <path d="m9 18 6-6-6-6" />
         </svg>
       </button>
-      <span v-else class="w-5 shrink-0" aria-hidden="true" />
+      <span v-else class="w-9 shrink-0" aria-hidden="true" />
 
       <RouterLink
         :to="`/doc/${node.fullPath}`"
-        class="flex-1 min-w-0 py-1 pr-2 truncate"
+        class="flex-1 min-w-0 py-2 pr-2 truncate"
       >
         {{ node.title || node.segment || 'Home' }}
       </RouterLink>
