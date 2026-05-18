@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
@@ -21,6 +21,25 @@ import { buildTree, type TreeNode } from './sidebarTree'
 import SidebarTreeItem from './SidebarTreeItem.vue'
 
 const emit = defineEmits<{ close: [] }>()
+
+// `open` reflects the drawer state on mobile. When it flips to true the
+// sidebar focuses its close button and scrolls the active tree node into
+// view — both pieces of context the user expects when they open the drawer.
+const props = defineProps<{ open?: boolean }>()
+
+const closeBtn = ref<HTMLButtonElement | null>(null)
+const scrollEl = ref<HTMLElement | null>(null)
+
+watch(
+  () => props.open,
+  async (open) => {
+    if (!open) return
+    await nextTick()
+    closeBtn.value?.focus()
+    const active = scrollEl.value?.querySelector<HTMLElement>('[data-active="true"]')
+    active?.scrollIntoView({ block: 'center' })
+  },
+)
 
 const auth = useAuthStore()
 const config = useConfigStore()
@@ -119,6 +138,7 @@ function toggleExpand(path: string) {
           </button>
           <!-- Close button — only on mobile, when the sidebar is acting as a drawer. -->
           <button
+            ref="closeBtn"
             type="button"
             class="md:hidden shrink-0 p-2 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
             aria-label="Close menu"
@@ -159,7 +179,7 @@ function toggleExpand(path: string) {
     <div class="shrink-0 border-t border-zinc-200 dark:border-zinc-800" />
 
     <!-- Tree / search results — the ONLY scrollable region in the sidebar. -->
-    <div class="flex-1 min-h-0 overflow-y-auto p-2">
+    <div ref="scrollEl" class="flex-1 min-h-0 overflow-y-auto p-2">
       <!-- Search results — instant title/path matches + debounced body matches -->
       <ul v-if="isSearching" class="space-y-0.5">
         <li v-if="results.length === 0 && !bodyLoading" class="text-sm text-zinc-500 px-2 py-1">
@@ -209,6 +229,7 @@ function toggleExpand(path: string) {
           :class="{
             'bg-brand-blue/10 text-brand-blue dark:text-brand-blue-dark font-medium': route.path === '/',
           }"
+          :data-active="route.path === '/' ? 'true' : null"
         >
           Home
         </RouterLink>

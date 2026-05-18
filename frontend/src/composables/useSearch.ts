@@ -19,7 +19,7 @@ export interface SearchResult {
  *   1. Instant client-side filter on the in-memory doc list (id, path, title
  *      only) — no network, runs on every keystroke. Covers title/path hits.
  *   2. Debounced server-side query via PocketBase's `~` (substring) filter on
- *      the body column. Runs ~200ms after the user stops typing. Covers
+ *      the body column. Runs ~300ms after the user stops typing. Covers
  *      content-only hits and produces a short snippet around the first match.
  *
  * Results are deduped by id and ordered title/path first, body second — the
@@ -63,7 +63,10 @@ export function useSearch(
       clearTimeout(timer)
       timer = undefined
     }
-    if (!current) {
+    // Short queries match too eagerly under PB's `body ~ {:q}` (LIKE %q%) —
+    // a 1–2 char query can pull every doc body. Title/path filtering still
+    // runs synchronously above, so the user gets instant feedback either way.
+    if (current.length < 3) {
       bodyResults.value = []
       bodyLoading.value = false
       return
@@ -71,14 +74,21 @@ export function useSearch(
     bodyLoading.value = true
     timer = window.setTimeout(async () => {
       try {
-        const records = await pb.collection('documents').getList<DocumentRecord>(1, 50, {
+        // getFullList (not getList) so the per-page filter in
+        // internal/hooks/documents.go doesn't truncate the result set: that
+        // hook removes denied rows after PB has already cut the page window,
+        // so a single getList page can come back arbitrarily short. The SDK
+        // walks pages until it has them all; the merged result below caps
+        // display at 50.
+        const records = await pb.collection('documents').getFullList<DocumentRecord>({
           filter: pb.filter('body ~ {:q}', { q: current }),
           sort: '+path',
           fields: 'id,path,title,body',
+          batch: 200,
         })
         // Race-safety: if the query changed while we were waiting, drop this batch.
         if (current !== q.value) return
-        bodyResults.value = records.items.map((d) => ({
+        bodyResults.value = records.map((d) => ({
           id: d.id,
           path: d.path,
           title: d.title,
@@ -92,7 +102,7 @@ export function useSearch(
       } finally {
         bodyLoading.value = false
       }
-    }, 200)
+    }, 300)
   })
 
   // Merge + dedup. title-path entries inserted first so they win when a doc

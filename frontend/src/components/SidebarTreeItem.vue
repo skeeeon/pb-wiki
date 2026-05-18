@@ -29,6 +29,7 @@ const isActive = computed(
       :class="{
         'bg-brand-blue/10 text-brand-blue dark:text-brand-blue-dark font-medium': isActive,
       }"
+      :data-active="isActive ? 'true' : null"
       :style="{ paddingLeft: 4 + depth * 12 + 'px' }"
     >
       <!-- Chevron toggle — only rendered when the node has children; otherwise

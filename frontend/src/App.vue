@@ -37,9 +37,12 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 // Body scroll lock while the drawer is open — otherwise touch-scrolling
-// over the backdrop drags the page behind it.
-watch(mobileOpen, (open) => {
+// over the backdrop drags the page behind it. When the drawer closes,
+// return focus to the hamburger that opened it.
+const hamburgerBtn = ref<HTMLButtonElement | null>(null)
+watch(mobileOpen, (open, wasOpen) => {
   document.body.style.overflow = open ? 'hidden' : ''
+  if (wasOpen && !open) hamburgerBtn.value?.focus()
 })
 
 // Current page title for the mobile top bar — derived from the docs store
@@ -87,6 +90,7 @@ onBeforeUnmount(() => {
       class="md:hidden fixed inset-x-0 top-0 z-30 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] flex items-center px-3 gap-3 border-b-2 border-brand-red bg-white dark:bg-zinc-900"
     >
       <button
+        ref="hamburgerBtn"
         type="button"
         class="p-2.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
         aria-label="Open menu"
@@ -151,7 +155,7 @@ onBeforeUnmount(() => {
              -translate-x-full md:translate-x-0"
       :class="{ 'translate-x-0': mobileOpen }"
     >
-      <Sidebar @close="mobileOpen = false" />
+      <Sidebar :open="mobileOpen" @close="mobileOpen = false" />
     </aside>
 
     <!-- No overflow-x on <main>: setting it would make main a scroll

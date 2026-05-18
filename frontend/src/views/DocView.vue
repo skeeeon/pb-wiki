@@ -183,7 +183,11 @@ watch(
           On this page
         </summary>
         <div class="pt-2">
-          <TocSidebar :headings="rendered.headings" :active-slug="activeSlug" />
+          <TocSidebar
+            :headings="rendered.headings"
+            :active-slug="activeSlug"
+            :page-title="doc.title"
+          />
         </div>
       </details>
 
@@ -196,7 +200,11 @@ watch(
         <MarkdownView :html="rendered.html" />
         <aside v-if="showToc" class="hidden lg:block">
           <div class="sticky top-6">
-            <TocSidebar :headings="rendered.headings" :active-slug="activeSlug" />
+            <TocSidebar
+              :headings="rendered.headings"
+              :active-slug="activeSlug"
+              :page-title="doc.title"
+            />
           </div>
         </aside>
       </div>
@@ -229,7 +237,11 @@ watch(
             class="lg:hidden z-50 w-[min(20rem,calc(100vw-2rem))] max-h-[60vh] overflow-y-auto rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 shadow-lg focus:outline-none"
             @click="onPopoverClick"
           >
-            <TocSidebar :headings="rendered.headings" :active-slug="activeSlug" />
+            <TocSidebar
+              :headings="rendered.headings"
+              :active-slug="activeSlug"
+              :page-title="doc?.title"
+            />
           </PopoverContent>
         </PopoverPortal>
       </PopoverRoot>
