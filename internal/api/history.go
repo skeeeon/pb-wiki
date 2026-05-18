@@ -56,14 +56,16 @@ type historyResponse struct {
 func handleHistory(e *core.RequestEvent) error {
 	path := normalizePath(e.Request.URL.Query().Get("path"))
 
-	doc, err := e.App.FindFirstRecordByFilter(
-		"documents",
-		"path = {:p}",
-		dbx.Params{"p": path},
-	)
-	if err != nil || doc == nil {
+	// dbx.HashExp goes directly to parameterized SQL — we deliberately avoid
+	// FindFirstRecordByFilter here because PB's filter parser JSON-encodes
+	// empty-string params into a literal `""` value, which would prevent the
+	// homepage (path="") from matching itself. Same workaround as the
+	// importer's upsert (internal/importer/importer.go).
+	docs, err := e.App.FindAllRecords("documents", dbx.HashExp{"path": path})
+	if err != nil || len(docs) == 0 {
 		return e.NotFoundError("", nil)
 	}
+	doc := docs[0]
 
 	rules, err := hooks.LoadRules(e.App)
 	if err != nil {

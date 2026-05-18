@@ -94,15 +94,16 @@ func handleBulkMove(e *core.RequestEvent) error {
 	// Outside-collision check: if a doc that isn't in the affected set
 	// already holds one of our target paths, refuse — the move would either
 	// silently overwrite that doc or trip the unique index mid-transaction.
+	// Uses dbx.HashExp (not FindFirstRecordByFilter) so a move *to* the
+	// homepage (item.To == "") correctly collides with the existing
+	// path="" row; PB's filter parser would otherwise JSON-encode the
+	// empty string into a literal `""` and miss the match.
 	for _, item := range items {
-		existing, _ := e.App.FindFirstRecordByFilter(
-			"documents",
-			"path = {:p}",
-			dbx.Params{"p": item.To},
-		)
-		if existing == nil {
+		matches, _ := e.App.FindAllRecords("documents", dbx.HashExp{"path": item.To})
+		if len(matches) == 0 {
 			continue
 		}
+		existing := matches[0]
 		if _, inSet := affectedIDs[existing.Id]; !inSet {
 			return e.BadRequestError(
 				fmt.Sprintf("Target path %q is already held by a document outside the moved set.", item.To),
