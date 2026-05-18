@@ -100,18 +100,20 @@ function toggleExpand(path: string) {
           <img src="/logo-dark.svg" :alt="config.config?.title || 'pb-wiki'" class="h-12 hidden dark:block" />
         </RouterLink>
         <div class="flex items-center gap-1">
+          <!-- Theme toggle is duplicated in the mobile top bar, so hide it
+               here on mobile to avoid two toggles in the same viewport. -->
           <button
             type="button"
-            class="shrink-0 p-2 md:p-1.5 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            class="hidden md:block shrink-0 p-1.5 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
             :title="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
             :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
             @click="toggleTheme"
           >
-            <svg v-if="theme === 'dark'" class="w-5 h-5 md:w-4 md:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg v-if="theme === 'dark'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="4" />
               <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
             </svg>
-            <svg v-else class="w-5 h-5 md:w-4 md:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
             </svg>
           </button>
