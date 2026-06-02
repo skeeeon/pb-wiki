@@ -13,20 +13,30 @@ export interface SearchResult {
   snippet?: string
 }
 
+/** Shape of one hit in the /api/wiki/search response (see internal/api/search.go). */
+interface BodySearchHit {
+  id: string
+  path: string
+  title: string
+  snippet: string
+}
+
 /**
  * useSearch combines two search strategies:
  *
  *   1. Instant client-side filter on the in-memory doc list (id, path, title
  *      only) — no network, runs on every keystroke. Covers title/path hits.
- *   2. Debounced server-side query via PocketBase's `~` (substring) filter on
- *      the body column. Runs ~300ms after the user stops typing. Covers
- *      content-only hits and produces a short snippet around the first match.
+ *   2. Debounced server-side full-text query against /api/wiki/search, backed
+ *      by a SQLite FTS5 index (porter stemming). Runs ~300ms after the user
+ *      stops typing. Covers content hits and returns a server-built snippet
+ *      around the match. The endpoint re-applies path-based access rules, so
+ *      restricted docs never surface here.
  *
  * Results are deduped by id and ordered title/path first, body second — the
  * title-match signal beats a body match for the same doc.
  *
- * PB's SDK already auto-cancels duplicate in-flight requests against the same
- * collection method, so rapid typing won't race the results.
+ * Each body query reuses the same SDK requestKey, so a newer keystroke
+ * auto-cancels the previous in-flight request and rapid typing won't race.
  */
 export function useSearch(
   query: Ref<string>,
@@ -63,9 +73,9 @@ export function useSearch(
       clearTimeout(timer)
       timer = undefined
     }
-    // Short queries match too eagerly under PB's `body ~ {:q}` (LIKE %q%) —
-    // a 1–2 char query can pull every doc body. Title/path filtering still
-    // runs synchronously above, so the user gets instant feedback either way.
+    // A 1–2 char prefix matches almost everything under FTS5 (`a*`), so gate
+    // on length. Title/path filtering still runs synchronously above, so the
+    // user gets instant feedback either way.
     if (current.length < 3) {
       bodyResults.value = []
       bodyLoading.value = false
@@ -74,26 +84,22 @@ export function useSearch(
     bodyLoading.value = true
     timer = window.setTimeout(async () => {
       try {
-        // getFullList (not getList) so the per-page filter in
-        // internal/hooks/documents.go doesn't truncate the result set: that
-        // hook removes denied rows after PB has already cut the page window,
-        // so a single getList page can come back arbitrarily short. The SDK
-        // walks pages until it has them all; the merged result below caps
-        // display at 50.
-        const records = await pb.collection('documents').getFullList<DocumentRecord>({
-          filter: pb.filter('body ~ {:q}', { q: current }),
-          sort: '+path',
-          fields: 'id,path,title,body',
-          batch: 200,
+        // /api/wiki/search does its own access filtering and snippet building,
+        // so we just hand it the query. The shared requestKey makes the SDK
+        // cancel any prior in-flight search when a newer keystroke arrives.
+        const res = await pb.send<{ results: BodySearchHit[] }>('/api/wiki/search', {
+          method: 'GET',
+          query: { q: current },
+          requestKey: 'wiki-search',
         })
         // Race-safety: if the query changed while we were waiting, drop this batch.
         if (current !== q.value) return
-        bodyResults.value = records.map((d) => ({
-          id: d.id,
-          path: d.path,
-          title: d.title,
+        bodyResults.value = res.results.map((h) => ({
+          id: h.id,
+          path: h.path,
+          title: h.title,
           matchType: 'body' as const,
-          snippet: extractSnippet(d.body ?? '', current),
+          snippet: h.snippet || undefined,
         }))
       } catch (err) {
         // Auto-cancellation throws — silently ignore those and surface real errors.
@@ -124,23 +130,6 @@ export function useSearch(
   })
 
   return { isSearching, results, bodyLoading, q }
-}
-
-/**
- * extractSnippet returns ~ `before` characters of context before the first
- * occurrence of `q` and `after` characters after it, with ellipses on either
- * side as appropriate. If somehow `q` isn't in `body` (shouldn't happen since
- * the server filter matched it, but defensive), returns the head of the body.
- */
-function extractSnippet(body: string, q: string, before = 40, after = 100): string {
-  const idx = body.toLowerCase().indexOf(q.toLowerCase())
-  if (idx === -1) {
-    return body.slice(0, before + after).replace(/\s+/g, ' ').trim()
-  }
-  const start = Math.max(0, idx - before)
-  const end = Math.min(body.length, idx + q.length + after)
-  const slice = body.slice(start, end).replace(/\s+/g, ' ').trim()
-  return (start > 0 ? '…' : '') + slice + (end < body.length ? '…' : '')
 }
 
 /**

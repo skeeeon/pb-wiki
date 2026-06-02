@@ -61,6 +61,7 @@ func main() {
 	}
 	api.RegisterBulkMove(app)
 	api.RegisterHistory(app)
+	api.RegisterSearch(app)
 	static.Register(app, frontendDist())
 
 	app.RootCmd.AddCommand(importer.New(app))
