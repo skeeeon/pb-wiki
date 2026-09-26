@@ -83,8 +83,9 @@ async function save() {
         <span>
           <span class="text-zinc-700 dark:text-zinc-300 font-medium">Private by default</span>
           <span class="block text-zinc-500">
-            When checked, paths not matched by any access rule require login. When unchecked,
-            unmatched paths are world-readable.
+            The access a new top-level page gets when its author doesn't choose one: private
+            (login required) when checked, public when unchecked. Pages nested under another
+            page copy that page's access instead.
           </span>
         </span>
       </label>
@@ -99,7 +100,7 @@ async function save() {
           <span class="text-zinc-700 dark:text-zinc-300 font-medium">Require login for the entire wiki</span>
           <span class="block text-zinc-500">
             When checked, anonymous visitors are redirected to the login page from every route —
-            including the homepage. Overrides explicit <code>public</code> access rules.
+            including the homepage. Overrides pages set to <code>public</code>.
           </span>
         </span>
       </label>

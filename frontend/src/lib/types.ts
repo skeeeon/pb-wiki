@@ -10,9 +10,14 @@ export interface UserRecord extends RecordModel {
   verified: boolean
   emailVisibility: boolean
   role: Role
-  groups: string[] | null
+  groups: string[] // group record ids
   name?: string
   avatar?: string
+  expand?: { groups?: GroupRecord[] }
+}
+
+export interface GroupRecord extends RecordModel {
+  name: string
 }
 
 export interface WikiConfig {
@@ -23,24 +28,17 @@ export interface WikiConfig {
   default_landing_path: string
 }
 
+export type AccessLevel = 'public' | 'private' | 'restricted'
+
 export interface DocumentRecord extends RecordModel {
   path: string
   title: string
   body: string
+  access: AccessLevel
+  groups: string[] // group record ids; used when access is 'restricted'
+  nav_order: number // sidebar sorts siblings by this, then by name
   updated_by: string
   created: string
   updated: string
-}
-
-export type AccessLevel = 'public' | 'private' | 'restricted'
-
-export interface AccessRuleRecord {
-  id: string
-  pattern: string
-  access: AccessLevel
-  groups: string[] | null
-  priority: number
-  description: string
-  created: string
-  updated: string
+  expand?: { groups?: GroupRecord[]; updated_by?: UserRecord }
 }

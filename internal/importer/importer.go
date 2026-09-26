@@ -9,9 +9,19 @@
 //	---
 //	path: getting-started/install     # required; use "" for the homepage
 //	title: Installation Guide         # optional; falls back to the first H1
+//	access: private                   # optional: public | private | restricted
+//	groups: [finance]                 # optional; group names, for restricted
+//	nav_order: 20                     # optional; sidebar position among siblings
 //	---
 //	# Installation Guide
 //	...body...
+//
+// Without `access`, a new page inherits its parent page's access and an
+// existing page keeps what it has; the same goes for `nav_order`.
+//
+// Relative links to other .md files in the tree ([Deploy](../ops/deploy.md#rollback))
+// are rewritten to wiki URLs (/doc/ops/deploy#rollback), so the source files
+// still link correctly when browsed on disk or in a git host.
 //
 // Files without frontmatter, or with frontmatter missing `path`, are skipped
 // (logged, not fatal) so a partial input tree doesn't abort the whole run.
@@ -22,11 +32,14 @@ package importer
 
 import (
 	"bytes"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/pocketbase/dbx"
@@ -43,17 +56,21 @@ func New(app *pocketbase.PocketBase) *cobra.Command {
 		Short: "Import markdown documents (with YAML frontmatter) into pb-wiki",
 		Long: `Recursively walks <markdown-dir> for .md files. Each file must begin with
 YAML frontmatter declaring a "path" (use path: "" for the homepage) and may
-optionally declare a "title":
+optionally declare "title", "access", "groups" and "nav_order":
 
   ---
   path: getting-started/install
   title: Installation Guide
+  access: private
+  nav_order: 20
   ---
   # Installation Guide
   ...
 
-If "title" is omitted, the first H1 in the body is used and stripped. Records
-are matched by path, so re-running is safe.`,
+If "title" is omitted, the first H1 in the body is used and stripped. Without
+"access", new pages inherit their parent page's access. Relative links to
+other .md files in the tree become wiki links. Records are matched by path,
+so re-running is safe.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return run(app, args[0])
@@ -64,20 +81,36 @@ are matched by path, so re-running is safe.`,
 
 type frontmatter struct {
 	// Pointer so we can distinguish "field absent" from "path: \"\"" (homepage).
-	Path  *string `yaml:"path"`
-	Title string  `yaml:"title"`
+	Path     *string  `yaml:"path"`
+	Title    string   `yaml:"title"`
+	Access   string   `yaml:"access"`
+	Groups   []string `yaml:"groups"`
+	NavOrder *int     `yaml:"nav_order"`
 }
 
-func run(app *pocketbase.PocketBase, root string) error {
+// page is one parsed input file.
+type page struct {
+	file  string // absolute path on disk
+	fm    frontmatter
+	title string
+	body  string
+}
+
+func run(app core.App, root string) error {
 	docs, err := app.FindCollectionByNameOrId("documents")
 	if err != nil {
 		return fmt.Errorf("find documents collection: %w", err)
 	}
+	root, err = filepath.Abs(root)
+	if err != nil {
+		return err
+	}
 
-	var created, updated, skipped int
-	// Detect duplicate paths within the input tree before we let the DB's
-	// unique index reject the second one with a less helpful error.
-	seen := map[string]string{}
+	// Pass 1: parse every file, so links can be resolved to any page.
+	var pages []page
+	var skipped int
+	pathOf := map[string]string{} // absolute file → wiki path
+	fileOf := map[string]string{} // wiki path → file, to report duplicates
 
 	walkErr := filepath.WalkDir(root, func(p string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -102,35 +135,81 @@ func run(app *pocketbase.PocketBase, root string) error {
 			return nil
 		}
 		slug := *fm.Path
-		if prev, dup := seen[slug]; dup {
+		if prev, dup := fileOf[slug]; dup {
 			return fmt.Errorf("duplicate path %q in input: %s and %s", slug, prev, p)
 		}
-		seen[slug] = p
+		fileOf[slug] = p
+		pathOf[p] = slug
 
 		title := fm.Title
 		bodyStr := string(body)
 		if title == "" {
 			title, bodyStr = splitTitle(bodyStr)
 		}
-
-		isUpdate, err := upsert(app, docs, slug, title, bodyStr)
-		if err != nil {
-			return fmt.Errorf("upsert %q (from %s): %w", slug, p, err)
-		}
-		report(slug, isUpdate)
-		if isUpdate {
-			updated++
-		} else {
-			created++
-		}
+		pages = append(pages, page{file: p, fm: fm, title: title, body: bodyStr})
 		return nil
 	})
 	if walkErr != nil && !errors.Is(walkErr, fs.ErrNotExist) {
 		return walkErr
 	}
 
+	// Pass 2: write parents before children ("a" sorts before "a/b"), so a
+	// new page without `access` can inherit from a parent created in this run.
+	sort.Slice(pages, func(i, j int) bool { return *pages[i].fm.Path < *pages[j].fm.Path })
+
+	var created, updated int
+	for _, pg := range pages {
+		body, missing := rewriteLinks(pg.body, filepath.Dir(pg.file), pathOf)
+		for _, target := range missing {
+			fmt.Printf("  warn   %s: link to %s does not match an imported file\n", pg.file, target)
+		}
+		pg.body = body
+
+		isUpdate, err := upsert(app, docs, pg)
+		if err != nil {
+			return fmt.Errorf("upsert %q (from %s): %w", *pg.fm.Path, pg.file, err)
+		}
+		report(*pg.fm.Path, isUpdate)
+		if isUpdate {
+			updated++
+		} else {
+			created++
+		}
+	}
+
 	fmt.Printf("\nDone. %d created, %d updated, %d skipped.\n", created, updated, skipped)
 	return nil
+}
+
+// mdLink matches an inline markdown link whose target is a .md file,
+// optionally with an #anchor: [text](../ops/deploy.md#rollback).
+var mdLink = regexp.MustCompile(`\]\(([^)\s#]+\.md)(#[^)\s]*)?\)`)
+
+// rewriteLinks turns relative links to imported .md files into wiki URLs.
+// dir is the directory of the file being imported; pathOf maps absolute file
+// paths to wiki paths. Absolute and external links are left alone. Relative
+// .md links that match no imported file are left alone and returned, so the
+// caller can warn about them.
+func rewriteLinks(body, dir string, pathOf map[string]string) (string, []string) {
+	var missing []string
+	out := mdLink.ReplaceAllStringFunc(body, func(m string) string {
+		sub := mdLink.FindStringSubmatch(m)
+		target, anchor := sub[1], sub[2]
+		if strings.HasPrefix(target, "/") || strings.Contains(target, "://") {
+			return m
+		}
+		slug, ok := pathOf[filepath.Join(dir, filepath.FromSlash(target))]
+		if !ok {
+			missing = append(missing, target)
+			return m
+		}
+		url := "/doc/" + slug
+		if slug == "" {
+			url = "/"
+		}
+		return "](" + url + anchor + ")"
+	})
+	return out, missing
 }
 
 // parseFrontmatter pulls a YAML frontmatter block (delimited by `---` lines)
@@ -181,31 +260,59 @@ func parseFrontmatter(b []byte) (frontmatter, []byte, error) {
 	return fm, nil, errors.New("frontmatter opened but not closed")
 }
 
-func upsert(app core.App, coll *core.Collection, slug, title, body string) (bool, error) {
+func upsert(app core.App, coll *core.Collection, pg page) (bool, error) {
 	// dbx.HashExp goes directly to parameterized SQL — we deliberately avoid
 	// FindFirstRecordByFilter here because PB's filter parser JSON-encodes
 	// empty-string params into a literal `""` value (filter.go:71-77 in
 	// pocketbase@v0.38), which would prevent the homepage (path="") from
 	// matching itself on a re-import.
-	existing, err := app.FindAllRecords("documents", dbx.HashExp{"path": slug})
+	existing, err := app.FindAllRecords("documents", dbx.HashExp{"path": *pg.fm.Path})
 	if err != nil {
 		return false, err
 	}
-	if len(existing) > 0 {
-		rec := existing[0]
-		rec.Set("title", title)
-		rec.Set("body", body)
-		if err := app.Save(rec); err != nil {
+	isUpdate := len(existing) > 0
+	rec := core.NewRecord(coll)
+	if isUpdate {
+		rec = existing[0]
+	}
+	rec.Set("path", *pg.fm.Path)
+	rec.Set("title", pg.title)
+	rec.Set("body", pg.body)
+	if pg.fm.Access != "" {
+		ids, err := groupIDs(app, pg.fm.Groups)
+		if err != nil {
 			return false, err
 		}
-		return true, nil
+		rec.Set("access", pg.fm.Access)
+		rec.Set("groups", ids)
 	}
+	if pg.fm.NavOrder != nil {
+		rec.Set("nav_order", *pg.fm.NavOrder)
+	}
+	return isUpdate, app.Save(rec)
+}
 
-	rec := core.NewRecord(coll)
-	rec.Set("path", slug)
-	rec.Set("title", title)
-	rec.Set("body", body)
-	return false, app.Save(rec)
+// groupIDs returns the ids of the named groups, creating any that don't
+// exist yet (the importer runs with full database access).
+func groupIDs(app core.App, names []string) ([]string, error) {
+	coll, err := app.FindCollectionByNameOrId("groups")
+	if err != nil {
+		return nil, err
+	}
+	ids := []string{}
+	for _, name := range names {
+		g, err := app.FindFirstRecordByData(coll, "name", name)
+		if errors.Is(err, sql.ErrNoRows) {
+			g = core.NewRecord(coll)
+			g.Set("name", name)
+			err = app.Save(g)
+		}
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, g.Id)
+	}
+	return ids, nil
 }
 
 // splitTitle pulls the first level-1 heading out of a markdown document and

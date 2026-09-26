@@ -4,14 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-### Backend (Go 1.25+)
+### Backend (Go 1.27+)
 ```bash
 go run . serve            # run PocketBase on :8090; Automigrate is ON in `go run` mode
 go run . migrate up       # explicit migration (prod binaries don't auto-migrate)
 go run . superuser upsert <email> <password>   # seed a PB superuser
 go run . import <markdown-dir>                 # import markdown files with YAML frontmatter (see internal/importer)
 go test ./...             # all unit tests
-go test ./internal/access -run TestCanAccess   # single test
+go test ./internal/hooks -run TestSearch      # single test
 ```
 
 ### Frontend (Vue 3 + Vite, in `frontend/`)
@@ -33,29 +33,26 @@ The Dockerfile already does this in two stages — prefer `docker build -t pb-wi
 
 ## Architecture
 
-This is a single-binary wiki: a Go program built on **PocketBase as a framework** (not a separate service) with a Vue 3 SPA embedded into the binary. Three things are wired in `main.go`: PB migrations register themselves, `hooks.Register` installs request-time guards, and `static.Register` mounts the embedded SPA with a catch-all priority-999 handler so any earlier API route wins.
+This is a single-binary wiki: a Go program built on **PocketBase as a framework** (not a separate service) with a Vue 3 SPA embedded into the binary. Three things are wired in `main.go`: PB migrations register themselves, `hooks.Register` installs model hooks, and `static.Register` mounts the embedded SPA with a catch-all priority-999 handler so any earlier API route wins.
 
-### The two-layer permission model (load-bearing)
+### The permission model (load-bearing)
 
-Permissions are enforced at **two orthogonal layers**, ported from wiki-go's "RequireRole gates actions, AccessRules gate paths":
+All access is enforced by **native PocketBase collection rules** (migration `1700000090`). Each document has `access` (public/private/restricted) and `groups`; the `documents` ListRule/ViewRule allow admins, `public` pages (unless `wiki_config.require_login` and anonymous), `private` pages for any logged-in user, and `restricted` pages via `groups.id ?= @request.auth.groups.id` (at least one shared group). Update/Delete require editor/admin **and** read access.
 
-1. **Role gates actions** — collection-level API rules in migrations check `@request.auth.role` (admin/editor can create/update/delete; everyone can read).
-2. **Path gates content** — `internal/hooks/documents.go` adds hooks on top of the `documents` collection that consult `internal/access` to decide whether the caller can see/touch a particular path. List requests filter rows in-memory; view returns **404 on deny** (to hide existence); create/update/delete return 403.
+Keep it in the rules. Filtering records in Go after the query leaks through `totalItems`, page boundaries and realtime broadcasts, which only check collection rules. Custom endpoints that query documents directly (`internal/api/search.go`, `history.go`) must check each row with `canView` (`internal/api/access.go`), which evaluates the same ViewRule.
 
-`internal/access` is intentionally PocketBase-free so it can be unit-tested in isolation — the `hooks` package is the seam that loads rules + the current user from PB records and calls into it. If you change the evaluator, update the tests there too; they cover wiki-go's exact glob semantics (`*`, `**`, `?`, trailing `/**` for "parent or any descendant", and the special case where bare `/**` matches only `/`).
+Hooks only fill in data: `hooks/documents.go` copies access from the nearest ancestor page on create (falling back to `private_default`), and `hooks/assets.go` lets documents claim the assets they embed and checks asset downloads against the owning document. Asset downloads read the auth token from the `pbwiki_auth` cookie, because `<img>` requests can't send the Authorization header.
 
 ### Path conventions
 
 `documents.path` is the slash-separated slug **without a leading slash**. The empty string is the homepage. The tree is *implicit* in the paths — there is no parent/child table. A "move subtree" is a prefix-update operation. The unique index on `path` enforces one homepage.
 
-The access evaluator normalizes both pattern and path to have a leading `/` before matching, so glob rules in `access_rules.pattern` can be written with or without the leading slash.
-
 ### Collections (see `migrations/`)
 
-- `users` (auth) — extends PB's stock collection with `role` (admin/editor/viewer) and `groups` (json array). Default role for OAuth-created users is forced to `viewer` in `hooks/auth.go`.
-- `documents` — markdown content; `path` unique, `updated_by` relation to users.
-- `assets` — uploaded images for markdown embeds (public file URLs).
-- `access_rules` — `pattern`, `access` (public/private/restricted), `groups`, `priority`. Loaded `ORDER BY priority ASC`; **first match wins**.
+- `users` (auth) — extends PB's stock collection with `role` (admin/editor/viewer) and `groups` (relation to `groups`). Default role for new users is `viewer` (`hooks/auth.go`). The Create/Update rules reject `role` and `groups` from anyone but an admin, so sign-up and self-edit cannot escalate.
+- `groups` — `name` unique. The UI edits groups as comma-separated names; `frontend/src/lib/groups.ts` maps names to ids.
+- `documents` — markdown content; `path` unique, `access`, `groups`, `updated_by` relation to users.
+- `assets` — uploaded images for markdown embeds; `document` is the owning page (set by the claim hook). Records are editor/admin-only; files are served through the download hook.
 - `wiki_config` — singleton row (seeded by its migration). Holds `private_default`, `require_login`, `default_landing_path`. CreateRule is `nil` to keep it singleton.
 
 ### OAuth allowlist

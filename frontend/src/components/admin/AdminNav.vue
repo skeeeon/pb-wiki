@@ -18,13 +18,6 @@ import { RouterLink } from 'vue-router'
       Users
     </RouterLink>
     <RouterLink
-      to="/admin/access-rules"
-      class="px-3 py-2 -mb-px text-sm text-zinc-500 border-b-2 border-transparent hover:text-zinc-900 dark:hover:text-zinc-100"
-      active-class="font-medium text-brand-blue dark:text-brand-blue-dark border-brand-blue dark:border-brand-blue-dark"
-    >
-      Access rules
-    </RouterLink>
-    <RouterLink
       to="/admin/move"
       class="px-3 py-2 -mb-px text-sm text-zinc-500 border-b-2 border-transparent hover:text-zinc-900 dark:hover:text-zinc-100"
       active-class="font-medium text-brand-blue dark:text-brand-blue-dark border-brand-blue dark:border-brand-blue-dark"

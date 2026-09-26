@@ -2,11 +2,12 @@
 import { onMounted, ref } from 'vue'
 
 import { pb } from '@/lib/pb'
+import { groupIds, groupNames } from '@/lib/groups'
 import type { Role, UserRecord } from '@/lib/types'
 import AdminNav from '@/components/admin/AdminNav.vue'
 
-// A UI-side mirror of UserRecord that holds the groups field as a CSV string
-// for in-place editing; we parse it back to an array on save.
+// A UI-side mirror of UserRecord that holds the groups as a CSV of names
+// for in-place editing. Saving creates any group that doesn't exist yet.
 interface UserRow extends UserRecord {
   groupsText: string
   saving?: boolean
@@ -25,10 +26,12 @@ async function load() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const rows = await pb.collection('users').getFullList<UserRecord>({ sort: '+email' })
+    const rows = await pb
+      .collection('users')
+      .getFullList<UserRecord>({ sort: '+email', expand: 'groups' })
     users.value = rows.map((u) => ({
       ...u,
-      groupsText: (u.groups ?? []).join(', '),
+      groupsText: groupNames(u.expand?.groups),
     }))
   } catch (err) {
     errorMsg.value = formatError(err)
@@ -41,10 +44,7 @@ async function saveUser(u: UserRow) {
   u.saving = true
   errorMsg.value = ''
   try {
-    const groups = u.groupsText
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
+    const groups = await groupIds(u.groupsText, true)
     await pb.collection('users').update(u.id, { role: u.role, groups })
     u.groups = groups
   } catch (err) {
@@ -101,7 +101,7 @@ onMounted(load)
 
     <header>
       <h1 class="text-xl font-semibold">Users</h1>
-      <p class="text-sm text-zinc-500">Manage roles and group memberships used by access rules.</p>
+      <p class="text-sm text-zinc-500">Manage roles and group memberships. Pages restricted to a group are readable by its members.</p>
     </header>
 
     <p v-if="errorMsg" class="text-sm text-red-600 dark:text-red-400">{{ errorMsg }}</p>

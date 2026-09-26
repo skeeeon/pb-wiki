@@ -1,11 +1,26 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { useTheme } from '@/composables/useTheme'
 
 const props = defineProps<{ html: string }>()
 const container = ref<HTMLElement | null>(null)
 const { theme } = useTheme()
+const router = useRouter()
+
+// Links to other wiki pages (/doc/…) navigate inside the SPA instead of
+// reloading it. Modified clicks (new tab etc.), other origins, API URLs and
+// links that open in a new tab keep the browser's default behaviour.
+function onLinkClick(ev: MouseEvent) {
+  if (ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return
+  const a = (ev.target as HTMLElement | null)?.closest('a')
+  if (!a || a.target === '_blank' || !a.href) return
+  const url = new URL(a.href)
+  if (url.origin !== window.location.origin || url.pathname.startsWith('/api/')) return
+  ev.preventDefault()
+  void router.push(url.pathname + url.search + url.hash)
+}
 
 // Lazy-load mermaid only when a doc actually contains a diagram. The fence
 // plugin (lib/markdown-mermaid.ts) emits <pre class="mermaid" data-mermaid-src>
@@ -49,7 +64,7 @@ watch([() => props.html, theme], renderMermaid, { immediate: true })
 </script>
 
 <template>
-  <div ref="container" class="markdown-body space-y-3 leading-relaxed" v-html="html" />
+  <div ref="container" class="markdown-body space-y-3 leading-relaxed" v-html="html" @click="onLinkClick" />
 </template>
 
 <style>

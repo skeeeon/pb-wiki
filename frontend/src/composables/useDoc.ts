@@ -29,7 +29,7 @@ export function useDoc(path: () => string): {
       doc.value = await pb
         .collection('documents')
         .getFirstListItem<DocumentRecord>(pb.filter('path = {:path}', { path: p }), {
-          expand: 'updated_by',
+          expand: 'updated_by,groups',
         })
     } catch (err: unknown) {
       if (isClientError(err) && err.status === 404) {

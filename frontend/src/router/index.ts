@@ -40,9 +40,8 @@ const router = createRouter({
       props: (route) => ({ path: joinPath(route.params.path), mode: 'edit' as const }),
     },
     {
-      // Anyone who can view a doc can see its history — the backend enforces
-      // access via internal/access, mirroring the doc view rules. We don't
-      // gate on role here.
+      // Anyone who can view a doc can see its history — the backend checks
+      // the documents ViewRule. We don't gate on role here.
       path: '/history/:path(.*)*',
       name: 'doc-history',
       component: () => import('@/views/DocHistory.vue'),
@@ -72,12 +71,6 @@ const router = createRouter({
       meta: { requiresRole: ['admin'] },
     },
     {
-      path: '/admin/access-rules',
-      name: 'admin-access-rules',
-      component: () => import('@/views/admin/AccessRules.vue'),
-      meta: { requiresRole: ['admin'] },
-    },
-    {
       path: '/admin/move',
       name: 'admin-bulk-move',
       component: () => import('@/views/admin/BulkMove.vue'),
@@ -103,8 +96,8 @@ router.beforeEach((to) => {
 
   // Wiki-wide lockdown: when wiki_config.require_login is on, every route
   // except /login itself demands an authenticated session. Mirrors the
-  // backend's CanAccess early-return so the UX matches what the API would
-  // enforce anyway. wiki_config is eager-loaded in main.ts.
+  // documents read rule, which hides public pages from anonymous callers
+  // while require_login is on. wiki_config is eager-loaded in main.ts.
   const lockedDown = config.config?.require_login === true
   if (lockedDown && !auth.isAuthenticated && to.name !== 'login') {
     return { name: 'login', query: { redirect: to.fullPath } }

@@ -16,6 +16,8 @@ import {
 } from 'reka-ui'
 
 import { pb } from '@/lib/pb'
+import { groupIds, groupNames } from '@/lib/groups'
+import type { AccessLevel } from '@/lib/types'
 import { useDoc } from '@/composables/useDoc'
 import { useAuthStore } from '@/stores/auth'
 import { useDocsStore } from '@/stores/docs'
@@ -35,6 +37,10 @@ const { doc, loading } = useDoc(fetchPath)
 
 const title = ref('')
 const body = ref('')
+// '' = let the server copy the parent page's access (new pages only).
+const access = ref<AccessLevel | ''>('')
+const groupsText = ref('')
+const navOrder = ref(0)
 const newPath = ref(path.value)
 const saving = ref(false)
 const deleting = ref(false)
@@ -57,10 +63,16 @@ watch(
       title.value = d?.title ?? ''
       body.value = d?.body ?? ''
       newPath.value = d?.path ?? p
+      access.value = d?.access ?? 'public'
+      groupsText.value = groupNames(d?.expand?.groups)
+      navOrder.value = d?.nav_order ?? 0
     } else {
       title.value = ''
       body.value = ''
       newPath.value = p
+      access.value = ''
+      groupsText.value = ''
+      navOrder.value = 0
     }
   },
   { immediate: true },
@@ -96,6 +108,11 @@ async function save() {
       title: title.value,
       body: body.value,
       updated_by: auth.record?.id,
+      nav_order: navOrder.value,
+    }
+    if (access.value) {
+      data.access = access.value
+      data.groups = access.value === 'restricted' ? await groupIds(groupsText.value) : []
     }
     if (props.mode === 'edit' && doc.value) {
       await pb.collection('documents').update(doc.value.id, data)
@@ -164,6 +181,36 @@ async function deleteDoc() {
         <input
           v-model="title"
           class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm"
+        />
+      </label>
+      <label class="block text-sm">
+        <span class="text-zinc-700 dark:text-zinc-300">Sidebar position</span>
+        <input
+          v-model.number="navOrder"
+          type="number"
+          step="1"
+          title="Siblings sort by this number, then by name"
+          class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm"
+        />
+      </label>
+      <label class="block text-sm">
+        <span class="text-zinc-700 dark:text-zinc-300">Access</span>
+        <select
+          v-model="access"
+          class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm"
+        >
+          <option v-if="mode === 'new'" value="">Same as parent page</option>
+          <option value="public">Public: anyone</option>
+          <option value="private">Private: logged-in users</option>
+          <option value="restricted">Restricted: members of groups</option>
+        </select>
+      </label>
+      <label v-if="access === 'restricted'" class="block text-sm">
+        <span class="text-zinc-700 dark:text-zinc-300">Groups</span>
+        <input
+          v-model="groupsText"
+          placeholder="comma, separated, groups"
+          class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm font-mono"
         />
       </label>
     </div>

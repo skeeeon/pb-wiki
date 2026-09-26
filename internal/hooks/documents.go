@@ -1,85 +1,66 @@
 package hooks
 
 import (
-	"github.com/pocketbase/pocketbase"
-	"github.com/pocketbase/pocketbase/core"
+	"database/sql"
+	"errors"
+	"strings"
 
-	"github.com/skeeeon/pb-wiki/internal/access"
+	"github.com/pocketbase/pocketbase/core"
 )
 
-// registerDocumentHooks wires path-based access enforcement onto the
-// `documents` collection. Role/auth gating already lives in the collection's
-// API rules (set in migration 1700000020); this layer adds the orthogonal
-// per-path check from access rules — the two together reproduce wiki-go's
-// "RequireRole gates actions, AccessRules gate paths" model.
-func registerDocumentHooks(app *pocketbase.PocketBase) {
-	// View — return 404 (not 403) on deny to avoid revealing existence.
-	app.OnRecordViewRequest("documents").BindFunc(func(e *core.RecordRequestEvent) error {
-		ok, err := canAccessRecord(e.App, e.Auth, e.Record)
-		if err != nil {
-			return err
-		}
-		if !ok {
-			return e.NotFoundError("", nil)
-		}
-		return e.Next()
-	})
-
-	// List — filter the in-memory result set; records the user can't see
-	// silently disappear from listings.
-	app.OnRecordsListRequest("documents").BindFunc(func(e *core.RecordsListRequestEvent) error {
-		rules, err := LoadRules(e.App)
-		if err != nil {
-			return err
-		}
-		cfg, err := LoadConfigFlags(e.App)
-		if err != nil {
-			return err
-		}
-		user := RecordToUser(e.Auth)
-
-		filtered := make([]*core.Record, 0, len(e.Records))
-		for _, r := range e.Records {
-			if access.CanAccess(r.GetString("path"), user, rules, cfg.PrivateDefault, cfg.RequireLogin) {
-				filtered = append(filtered, r)
+// registerDocumentHooks fills in a new document's access when the creator
+// did not choose one. Enforcement itself lives in the documents collection's
+// API rules (migration 1700000090), which read the `access` and `groups`
+// fields set here.
+//
+// This is a model hook, so it covers every way a document is created: the
+// API, the importer, bulk move and the PB admin UI.
+func registerDocumentHooks(app core.App) {
+	app.OnRecordCreate("documents").BindFunc(func(e *core.RecordEvent) error {
+		if e.Record.GetString("access") == "" {
+			if err := inheritAccess(e.App, e.Record); err != nil {
+				return err
 			}
 		}
-		e.Records = filtered
-		if e.Result != nil {
-			e.Result.Items = filtered
-		}
 		return e.Next()
 	})
+}
 
-	// Create/Update/Delete — must have access to the target path (in addition
-	// to the role gate the collection's API rule applies). Use 403 here since
-	// the caller already knew the path; the failure mode is "you can't write
-	// here," not "this doesn't exist."
-	writeGuard := func(e *core.RecordRequestEvent) error {
-		ok, err := canAccessRecord(e.App, e.Auth, e.Record)
+// inheritAccess copies access and groups from the nearest existing ancestor
+// document (for "a/b/c": "a/b", then "a"). A top-level document, or one with
+// no ancestors, gets private when wiki_config.private_default is set and
+// public otherwise. The homepage is not treated as everyone's parent.
+func inheritAccess(app core.App, doc *core.Record) error {
+	for p := parentPath(doc.GetString("path")); p != ""; p = parentPath(p) {
+		parent, err := app.FindFirstRecordByData("documents", "path", p)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
 		if err != nil {
 			return err
 		}
-		if !ok {
-			return e.ForbiddenError("", nil)
-		}
-		return e.Next()
+		doc.Set("access", parent.GetString("access"))
+		doc.Set("groups", parent.GetStringSlice("groups"))
+		return nil
 	}
-	app.OnRecordCreateRequest("documents").BindFunc(writeGuard)
-	app.OnRecordUpdateRequest("documents").BindFunc(writeGuard)
-	app.OnRecordDeleteRequest("documents").BindFunc(writeGuard)
+
+	cfg, err := app.FindFirstRecordByFilter("wiki_config", "")
+	if err != nil {
+		return err
+	}
+	if cfg.GetBool("private_default") {
+		doc.Set("access", "private")
+	} else {
+		doc.Set("access", "public")
+	}
+	return nil
 }
 
-// canAccessRecord loads rules + config and evaluates access for the given
-// auth record against the given document record's path.
-func canAccessRecord(app core.App, auth *core.Record, doc *core.Record) (bool, error) {
-	rules, err := LoadRules(app)
-	if err != nil {
-		return false, err
+// parentPath returns "a/b" for "a/b/c" and "" for a top-level path.
+func parentPath(p string) string {
+	i := strings.LastIndex(p, "/")
+	if i < 0 {
+		return ""
 	}
-	cfg, err := LoadConfigFlags(app)
-	if err != nil {
-		return false, err
-	}
-	return access.CanAccess(doc.GetString("path"), RecordToUser(auth), rules, cfg.PrivateDefault, cfg.RequireLogin), nil
+	return p[:i]
 }

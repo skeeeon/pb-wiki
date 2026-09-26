@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -12,7 +11,7 @@ import (
 // EmailField.OnlyDomains setting on the users collection applies natively to
 // both password signup and OAuth, so admins should configure that via the PB
 // admin UI rather than via a custom hook + Settings field.
-func registerAuthHooks(app *pocketbase.PocketBase) {
+func registerAuthHooks(app core.App) {
 	// Default role for any newly-created user, since `role` is Required on
 	// the collection but OAuth sign-up doesn't supply one. Admins can promote
 	// later via the Users admin page.
