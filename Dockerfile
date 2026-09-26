@@ -17,7 +17,7 @@ RUN npm run build
 # -----------------------------------------------------------------------------
 # Stage 2 — backend (embeds the frontend dist via //go:embed)
 # -----------------------------------------------------------------------------
-FROM golang:1.25-alpine AS backend
+FROM golang:1.27-alpine AS backend
 WORKDIR /app
 
 # Module cache first.
