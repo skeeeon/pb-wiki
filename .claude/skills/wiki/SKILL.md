@@ -25,7 +25,15 @@ If all three pass, proceed. Don't repeat the bootstrap check within the same con
 
 ## Schema
 
-Each document has at least: `title`, `path`, `body` (markdown). `path` is the canonical slug — a forward-slash-delimited hierarchy (e.g. `section/page`, `section/subsection/page`). The root landing page has `path=""`.
+Each document has: `title`, `path`, `body` (markdown), `access`, `groups`, `nav_order`.
+
+- `path` is the canonical slug — a forward-slash-delimited hierarchy (e.g. `section/page`, `section/subsection/page`). The root landing page has `path=""`.
+- `access` is who can read the page: `public` (anyone), `private` (any logged-in user) or `restricted` (users who share at least one group with the page). `groups` holds **group record ids**, not names; it only matters for `restricted`.
+- `nav_order` is the page's position in the sidebar among its siblings (then by name; `0` is the default).
+
+The server only ever returns pages the authenticated user can read — list results and `totalItems` already exclude the rest. If a page the user expects is missing, it may exist but be hidden from their account; say so rather than concluding it doesn't exist.
+
+Links between pages in a body are written as `/doc/<path>` (the homepage is `/`), with an optional `#heading-id`.
 
 ## Workflow: index → fetch
 
@@ -90,17 +98,23 @@ Drafts live at `/tmp/pb-wiki-drafts/<slugified-path>.md` (create the directory i
 ---
 path: section/page-slug
 title: Page Title
+# optional — include only when the user asked to set or change them:
+# access: private          # public | private | restricted
+# groups: [finance]        # group NAMES, for restricted
+# nav_order: 20
 ---
 
 <markdown body here>
 ```
 
+Leave `access` out of a new page's draft unless the user chose one: the server then copies access and groups from the nearest parent page (or the wiki default for top-level pages). Leave it out of an update's draft to keep the page's current access.
+
 ### Updating an existing page
 
-1. **Resolve the record** — look up `id`, `title`, and current `body` by path:
+1. **Resolve the record** — look up `id`, `title`, current `body` and access by path:
 
    ```bash
-   pb collections list documents --filter='path="section/page-slug"' --fields=id,path,title,body -o yaml
+   pb collections list documents --filter='path="section/page-slug"' --fields=id,path,title,body,access,groups,nav_order -o yaml
    ```
 
    Capture the `id` — you'll need it at push time. If `totalItems` is 0, the page doesn't exist; switch to the create flow below.
@@ -126,6 +140,17 @@ title: Page Title
 
    This pipeline round-trips body markdown cleanly through quotes, backticks, fenced code blocks, and colons. `yq` here is mikefarah's Go yq v4+ (not the Python `yq`).
 
+   If the draft sets `access`, `groups` or `nav_order`, add them to the payload. Groups must be sent as ids, so look each name up first (only editors and admins can list groups; a missing group means an admin has to create it — stop and tell the user):
+
+   ```bash
+   pb collections list groups --filter='name="finance"' --fields=id,name -o yaml
+   jq --arg a restricted --argjson g '["<group id>"]' --argjson n 20 \
+     '. + {access:$a, groups:$g, nav_order:$n}' /tmp/pb-wiki-drafts/<slug>.json > /tmp/pb-wiki-drafts/<slug>.tmp \
+     && mv /tmp/pb-wiki-drafts/<slug>.tmp /tmp/pb-wiki-drafts/<slug>.json
+   ```
+
+   For `public` or `private`, send `groups: []`.
+
 6. **Confirm.** Show the user the returned record's `updated` timestamp from the YAML output as proof.
 
 ### Creating a new page
@@ -145,6 +170,7 @@ Same flow, with two differences:
 - **Don't auto-push after edits.** Each round of changes is a new draft; re-confirm.
 - **One page per draft.** Multi-page edits = multiple drafts, each confirmed independently. It's tempting to batch, but each push is independently visible.
 - **Don't invent paths or titles.** If the user hasn't specified them, ask.
+- **Access changes are visibility changes.** Never change `access` or `groups` unless the user asked. When a draft does, say plainly who gains or loses the ability to read the page (e.g. "this makes the page readable by anyone on the internet") and get a separate yes for that.
 
 ## What this skill does NOT do
 

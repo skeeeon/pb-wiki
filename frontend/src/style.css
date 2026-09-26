@@ -10,47 +10,59 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Brand palette — exposed to Tailwind v4 as a custom color scale so we can
- * write `bg-brand-red`, `text-brand-blue`, etc. anywhere in the app.
+ * Palette — the Stone-Age platform console's, so the wiki and the console
+ * read as one product. Values are copied from the light/dark daisyUI themes
+ * in platform/ui/tailwind.config.js; keep them in step with that file rather
+ * than adapting them here.
  *
- *   Red    #F9423A — primary CTAs, danger
- *   Blue   #3780F4 — links, secondary action
- *   Yellow #F9CB46 — accent / highlights
+ *   primary  — the one brand colour: buttons, links, active navigation
+ *   surface  — cards and the sidebar (daisyUI base-100)
+ *   line     — borders (base-300)
+ *   muted    — secondary text (the platform's `secondary`)
+ *   info / success / warning / error — state only, never decoration
  *
- * Navy gradient (#1D2B37 → #2E64B5) tints sidebar / surface colors in dark
- * mode. The lighter blue variant (#5a9af5) is the dark-mode link color
- * since the standard blue gets lost on dark backgrounds.
+ * Neutrals are Tailwind's slate scale (the platform's cool, faintly indigo
+ * greys are slate). The shades the layout leans on are pinned to the
+ * platform's exact values: slate-50 is the page ground (base-200), slate-200
+ * the light border, slate-900 the light text.
  */
 @theme {
-  --color-brand-red:        #F9423A;
-  --color-brand-red-hover:  #d93832;
-  --color-brand-blue:       #3780F4;
-  --color-brand-blue-hover: #2A5696;
-  --color-brand-blue-dark:  #5a9af5;
-  --color-brand-yellow:     #F9CB46;
+  --color-primary:       #4F46E5;
+  --color-primary-hover: #4338CA;
+  --color-surface:       #FFFFFF;
+  --color-line:          #E4E8EF;
+  --color-muted:         #64748B;
+  --color-info:          #2563EB;
+  --color-success:       #16A34A;
+  --color-warning:       #D97706;
+  --color-error:         #DC2626;
 
-  --color-brand-navy:       #1D2B37;
-  --color-brand-navy-300:   #213957;
-  --color-brand-navy-200:   #264776;
-  --color-brand-navy-100:   #2A5696;
-  --color-brand-navy-50:    #2E64B5;
+  --color-slate-50:  #F4F6FA;
+  --color-slate-200: #E4E8EF;
+  --color-slate-900: #1B2330;
 }
 
-/* Dark-mode surface palette — re-point the dark zinc shades to the
-   Velociti navy palette so every `dark:bg-zinc-950`, `dark:border-zinc-700`,
-   etc. resolves to a navy tone without touching component classes. The
-   ordering preserves the existing elevation hierarchy:
-     950 (page) → navy (#1D2B37)
-     900 (panel/surface) → navy-300 (#213957)
-     800 (elevated / hover) → navy-200 (#264776)
-     700 (visible border) → navy-100 (#2A5696)
-   Lighter shades (100/300/400) stay as zinc — they're text on dark and
-   read fine over navy. */
+/* Dark theme. The same names point at the platform's dark values, and the
+   dark slate shades are re-pointed so every `dark:bg-slate-950`,
+   `dark:border-slate-800`, etc. lands on a platform colour without touching
+   component classes:
+     950 page ground (base-200) · 900 surface (base-100)
+     800 border / hover (base-300) · 100 text (base-content) */
 html.dark {
-  --color-zinc-950: var(--color-brand-navy);
-  --color-zinc-900: var(--color-brand-navy-300);
-  --color-zinc-800: var(--color-brand-navy-200);
-  --color-zinc-700: var(--color-brand-navy-100);
+  --color-primary:       #6366F1;
+  --color-primary-hover: #4F46E5;
+  --color-surface:       #12161D;
+  --color-line:          #232A35;
+  --color-muted:         #94A3B8;
+  --color-info:          #3B82F6;
+  --color-success:       #22C55E;
+  --color-warning:       #F59E0B;
+  --color-error:         #EF4444;
+
+  --color-slate-950: #0D1017;
+  --color-slate-900: #12161D;
+  --color-slate-800: #232A35;
+  --color-slate-100: #E7EBF2;
 }
 
 /* Base text + surface colors. Setting these on `body` means every route
@@ -58,20 +70,16 @@ html.dark {
    don't sit under App.vue's chrome wrapper and therefore weren't picking
    up its text-color utility classes. */
 body {
-  background-color: var(--color-zinc-50);
-  color: var(--color-zinc-900);
+  background-color: var(--color-slate-50);
+  color: var(--color-slate-900);
 }
 html.dark body {
-  background-color: var(--color-zinc-950);
-  color: var(--color-zinc-100);
+  background-color: var(--color-slate-950);
+  color: var(--color-slate-100);
 }
 
-/* Selection highlight uses the brand blue. */
 ::selection {
-  background-color: rgba(55, 128, 244, 0.3);
-}
-.dark ::selection {
-  background-color: rgba(90, 154, 245, 0.3);
+  background-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 
 /* iOS Safari zooms the viewport on focus when a form control's computed

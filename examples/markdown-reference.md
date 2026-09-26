@@ -118,10 +118,15 @@ Three dashes on a line by themselves:
 # Callouts
 
 Four flavors: `note`, `tip`, `warning`, `danger`. The container syntax is
-`::: name` to open and `:::` to close.
+`::: name` to open and `:::` to close. Text after the name replaces the
+default title and may use inline markdown.
 
 ::: note
 A neutral aside. Good for clarifying context or pointing at a related page.
+:::
+
+::: note Replaces `old-tool`
+A callout with its own title.
 :::
 
 ::: tip

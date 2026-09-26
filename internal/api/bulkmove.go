@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/pocketbase/dbx"
-	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/security"
@@ -19,7 +18,7 @@ import (
 // RegisterBulkMove wires POST /api/wiki/bulk-move onto the app router.
 // The handler requires an authenticated admin user and rewrites the `path`
 // prefix of every document under `from` to `to` in a single transaction.
-func RegisterBulkMove(app *pocketbase.PocketBase) {
+func RegisterBulkMove(app core.App) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 		se.Router.POST("/api/wiki/bulk-move", handleBulkMove).
 			Bind(apis.RequireAuth("users"))

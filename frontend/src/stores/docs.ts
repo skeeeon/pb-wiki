@@ -24,7 +24,7 @@ export const useDocsStore = defineStore('docs', () => {
     try {
       list.value = await pb.collection('documents').getFullList<DocumentRecord>({
         sort: '+path',
-        fields: 'id,path,title',
+        fields: 'id,path,title,nav_order',
       })
     } catch (err) {
       error.value = err

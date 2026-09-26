@@ -63,14 +63,14 @@ async function save() {
       <h1 class="text-xl font-semibold">Settings</h1>
     </header>
 
-    <p v-if="config.loading" class="text-sm text-zinc-500">Loading…</p>
+    <p v-if="config.loading" class="text-sm text-slate-500">Loading…</p>
 
     <form v-else class="space-y-5 max-w-xl" @submit.prevent="save">
       <label class="block text-sm">
-        <span class="text-zinc-700 dark:text-zinc-300">Wiki title</span>
+        <span class="text-slate-700 dark:text-slate-300">Wiki title</span>
         <input
           v-model="title"
-          class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm"
+          class="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
         />
       </label>
 
@@ -81,10 +81,11 @@ async function save() {
           class="mt-1"
         />
         <span>
-          <span class="text-zinc-700 dark:text-zinc-300 font-medium">Private by default</span>
-          <span class="block text-zinc-500">
-            When checked, paths not matched by any access rule require login. When unchecked,
-            unmatched paths are world-readable.
+          <span class="text-slate-700 dark:text-slate-300 font-medium">Private by default</span>
+          <span class="block text-slate-500">
+            The access a new top-level page gets when its author doesn't choose one: private
+            (login required) when checked, public when unchecked. Pages nested under another
+            page copy that page's access instead.
           </span>
         </span>
       </label>
@@ -96,22 +97,22 @@ async function save() {
           class="mt-1"
         />
         <span>
-          <span class="text-zinc-700 dark:text-zinc-300 font-medium">Require login for the entire wiki</span>
-          <span class="block text-zinc-500">
+          <span class="text-slate-700 dark:text-slate-300 font-medium">Require login for the entire wiki</span>
+          <span class="block text-slate-500">
             When checked, anonymous visitors are redirected to the login page from every route —
-            including the homepage. Overrides explicit <code>public</code> access rules.
+            including the homepage. Overrides pages set to <code>public</code>.
           </span>
         </span>
       </label>
 
       <label class="block text-sm">
-        <span class="text-zinc-700 dark:text-zinc-300">Default landing path</span>
+        <span class="text-slate-700 dark:text-slate-300">Default landing path</span>
         <input
           v-model="defaultLandingPath"
           placeholder="(homepage)"
-          class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm font-mono"
+          class="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm font-mono"
         />
-        <span class="block mt-1 text-xs text-zinc-500">
+        <span class="block mt-1 text-xs text-slate-500">
           Path the root URL <code>/</code> resolves to when there's no homepage document.
           Leave empty for the path-empty home convention.
         </span>
@@ -121,7 +122,7 @@ async function save() {
         <button
           type="submit"
           :disabled="saving"
-          class="rounded-md bg-brand-red hover:bg-brand-red-hover text-white px-3 py-2 text-sm font-medium disabled:opacity-60"
+          class="rounded-lg bg-primary hover:bg-primary-hover text-white px-3 py-2 text-sm font-medium disabled:opacity-60"
         >
           {{ saving ? 'Saving…' : 'Save settings' }}
         </button>

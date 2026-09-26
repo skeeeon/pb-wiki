@@ -87,12 +87,12 @@ onBeforeUnmount(() => {
          Height extends behind the iOS notch via safe-area-inset-top so the
          contents (sized to h-14) stay below the system status area. -->
     <header
-      class="md:hidden fixed inset-x-0 top-0 z-30 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] flex items-center px-3 gap-3 border-b-2 border-brand-red bg-white dark:bg-zinc-900"
+      class="md:hidden fixed inset-x-0 top-0 z-30 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] flex items-center px-3 gap-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
     >
       <button
         ref="hamburgerBtn"
         type="button"
-        class="p-2.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
+        class="p-2.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
         aria-label="Open menu"
         @click="mobileOpen = true"
       >
@@ -123,7 +123,7 @@ onBeforeUnmount(() => {
       </div>
       <button
         type="button"
-        class="shrink-0 p-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
+        class="shrink-0 p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
         :title="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
         :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
         @click="toggleTheme"
@@ -150,7 +150,7 @@ onBeforeUnmount(() => {
          a stretched flex parent prevents sticky from engaging. -->
     <aside
       class="fixed top-0 left-0 z-50 w-80 h-dvh flex flex-col
-             border-r-2 border-brand-red bg-white dark:bg-zinc-900
+             border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900
              transition-transform duration-200 ease-out
              -translate-x-full md:translate-x-0"
       :class="{ 'translate-x-0': mobileOpen }"

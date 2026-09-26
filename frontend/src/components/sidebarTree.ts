@@ -4,6 +4,7 @@ export interface TreeNode {
   segment: string // last path segment, e.g. "deploy"
   fullPath: string // full slug, e.g. "engineering/runbooks/deploy"
   title: string | null // null until a document with this exact path exists
+  navOrder: number // the document's nav_order; 0 for implicit segments
   children: TreeNode[]
 }
 
@@ -12,8 +13,11 @@ export interface TreeNode {
 // no document record (e.g. "engineering/" exists implicitly because
 // "engineering/runbooks" does) get a node with title=null; the sidebar still
 // renders them so the user can navigate down to the leaf.
+//
+// Siblings sort by nav_order, then by segment name, so pages without a
+// nav_order (0) keep alphabetical order.
 export function buildTree(docs: DocumentRecord[]): TreeNode[] {
-  const root: TreeNode = { segment: '', fullPath: '', title: null, children: [] }
+  const root: TreeNode = { segment: '', fullPath: '', title: null, navOrder: 0, children: [] }
 
   for (const d of docs) {
     if (d.path === '') {
@@ -27,16 +31,17 @@ export function buildTree(docs: DocumentRecord[]): TreeNode[] {
       acc = acc ? `${acc}/${seg}` : seg
       let child = node.children.find((c) => c.segment === seg)
       if (!child) {
-        child = { segment: seg, fullPath: acc, title: null, children: [] }
+        child = { segment: seg, fullPath: acc, title: null, navOrder: 0, children: [] }
         node.children.push(child)
       }
       node = child
     }
     node.title = d.title || node.segment
+    node.navOrder = d.nav_order ?? 0
   }
 
   const sort = (n: TreeNode) => {
-    n.children.sort((a, b) => a.segment.localeCompare(b.segment))
+    n.children.sort((a, b) => a.navOrder - b.navOrder || a.segment.localeCompare(b.segment))
     n.children.forEach(sort)
   }
   sort(root)

@@ -6,24 +6,19 @@ import (
 	"unicode"
 
 	"github.com/pocketbase/dbx"
-	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
-
-	"github.com/skeeeon/pb-wiki/internal/access"
-	"github.com/skeeeon/pb-wiki/internal/hooks"
 )
 
 // RegisterSearch wires GET /api/wiki/search onto the app router. The handler
 // runs a SQLite FTS5 MATCH against documents_fts (kept in sync by triggers; see
-// migration 1700000080) and then re-applies pb-wiki's path-based access rules
-// to the matched rows.
+// migration 1700000080) and then checks each matched row against the documents
+// ViewRule.
 //
-// The FTS join lives outside PocketBase's record-list pipeline, so the
-// OnRecordsListRequest filter in internal/hooks/documents.go does NOT run here.
-// Re-checking access on every row is therefore load-bearing: without it,
-// restricted document bodies would be searchable (and snippet-leaked) by
-// anyone. Denials silently drop the row, mirroring the list hook.
-func RegisterSearch(app *pocketbase.PocketBase) {
+// The FTS join lives outside PocketBase's record API, so the collection rules
+// do NOT apply to it. Checking every row is therefore load-bearing: without
+// it, restricted document bodies would be searchable (and snippet-leaked) by
+// anyone. Denied rows are silently dropped.
+func RegisterSearch(app core.App) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 		se.Router.GET("/api/wiki/search", handleSearch)
 		return se.Next()
@@ -79,19 +74,30 @@ func handleSearch(e *core.RequestEvent) error {
 		return e.InternalServerError("Search failed.", err)
 	}
 
-	rules, err := hooks.LoadRules(e.App)
-	if err != nil {
-		return e.InternalServerError("Failed to load access rules.", err)
+	ids := make([]string, len(rows))
+	for i, r := range rows {
+		ids[i] = r.ID
 	}
-	cfg, err := hooks.LoadConfigFlags(e.App)
+	records, err := e.App.FindRecordsByIds("documents", ids)
 	if err != nil {
-		return e.InternalServerError("Failed to load wiki config.", err)
+		return e.InternalServerError("Search failed.", err)
 	}
-	user := hooks.RecordToUser(e.Auth)
+	byID := make(map[string]*core.Record, len(records))
+	for _, rec := range records {
+		byID[rec.Id] = rec
+	}
 
 	results := make([]searchResult, 0, len(rows))
 	for _, r := range rows {
-		if !access.CanAccess(r.Path, user, rules, cfg.PrivateDefault, cfg.RequireLogin) {
+		rec := byID[r.ID]
+		if rec == nil {
+			continue
+		}
+		ok, err := canView(e, rec)
+		if err != nil {
+			return e.InternalServerError("Failed to check access.", err)
+		}
+		if !ok {
 			continue
 		}
 		results = append(results, searchResult{

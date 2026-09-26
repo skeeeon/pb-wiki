@@ -2,11 +2,12 @@
 import { onMounted, ref } from 'vue'
 
 import { pb } from '@/lib/pb'
+import { groupIds, groupNames } from '@/lib/groups'
 import type { Role, UserRecord } from '@/lib/types'
 import AdminNav from '@/components/admin/AdminNav.vue'
 
-// A UI-side mirror of UserRecord that holds the groups field as a CSV string
-// for in-place editing; we parse it back to an array on save.
+// A UI-side mirror of UserRecord that holds the groups as a CSV of names
+// for in-place editing. Saving creates any group that doesn't exist yet.
 interface UserRow extends UserRecord {
   groupsText: string
   saving?: boolean
@@ -25,10 +26,12 @@ async function load() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const rows = await pb.collection('users').getFullList<UserRecord>({ sort: '+email' })
+    const rows = await pb
+      .collection('users')
+      .getFullList<UserRecord>({ sort: '+email', expand: 'groups' })
     users.value = rows.map((u) => ({
       ...u,
-      groupsText: (u.groups ?? []).join(', '),
+      groupsText: groupNames(u.expand?.groups),
     }))
   } catch (err) {
     errorMsg.value = formatError(err)
@@ -41,10 +44,7 @@ async function saveUser(u: UserRow) {
   u.saving = true
   errorMsg.value = ''
   try {
-    const groups = u.groupsText
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
+    const groups = await groupIds(u.groupsText, true)
     await pb.collection('users').update(u.id, { role: u.role, groups })
     u.groups = groups
   } catch (err) {
@@ -101,36 +101,36 @@ onMounted(load)
 
     <header>
       <h1 class="text-xl font-semibold">Users</h1>
-      <p class="text-sm text-zinc-500">Manage roles and group memberships used by access rules.</p>
+      <p class="text-sm text-slate-500">Manage roles and group memberships. Pages restricted to a group are readable by its members.</p>
     </header>
 
     <p v-if="errorMsg" class="text-sm text-red-600 dark:text-red-400">{{ errorMsg }}</p>
 
     <section
-      class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden"
+      class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden"
     >
       <header
-        class="flex items-baseline justify-between px-6 py-3 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200 dark:border-zinc-800"
+        class="flex items-baseline justify-between px-6 py-3 bg-slate-50 dark:bg-slate-950/40 border-b border-slate-200 dark:border-slate-800"
       >
         <h2 class="text-sm font-semibold">All users</h2>
-        <span class="text-xs text-zinc-500">{{ users.length }} total</span>
+        <span class="text-xs text-slate-500">{{ users.length }} total</span>
       </header>
       <table v-if="!loading && users.length > 0" class="w-full text-sm">
-        <thead class="text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wide">
-          <tr class="border-b border-zinc-200 dark:border-zinc-800">
+        <thead class="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide">
+          <tr class="border-b border-slate-200 dark:border-slate-800">
             <th class="text-left px-6 py-2 font-medium">Email</th>
             <th class="text-left px-3 py-2 font-medium w-32">Role</th>
             <th class="text-left px-3 py-2 font-medium">Groups</th>
             <th class="text-right px-6 py-2 font-medium w-40">Actions</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
+        <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
           <tr v-for="u in users" :key="u.id">
             <td class="px-6 py-2 font-mono text-xs">{{ u.email }}</td>
             <td class="px-3 py-2">
               <select
                 v-model="u.role"
-                class="rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-sm focus:outline-none focus:border-brand-blue"
+                class="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1 text-sm focus:outline-none focus:border-primary"
               >
                 <option value="admin">admin</option>
                 <option value="editor">editor</option>
@@ -141,7 +141,7 @@ onMounted(load)
               <input
                 v-model="u.groupsText"
                 placeholder="comma, separated, groups"
-                class="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-sm font-mono focus:outline-none focus:border-brand-blue"
+                class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1 text-sm font-mono focus:outline-none focus:border-primary"
               />
             </td>
             <td class="px-6 py-2 text-right">
@@ -149,7 +149,7 @@ onMounted(load)
                 <button
                   type="button"
                   :disabled="u.saving"
-                  class="rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-3 py-1 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 px-3 py-1 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   @click="saveUser(u)"
                 >
                   {{ u.saving ? 'Saving…' : 'Save' }}
@@ -166,17 +166,17 @@ onMounted(load)
           </tr>
         </tbody>
       </table>
-      <p v-else-if="loading" class="px-6 py-4 text-sm text-zinc-500">Loading…</p>
-      <p v-else class="px-6 py-4 text-sm text-zinc-500">No users yet.</p>
+      <p v-else-if="loading" class="px-6 py-4 text-sm text-slate-500">Loading…</p>
+      <p v-else class="px-6 py-4 text-sm text-slate-500">No users yet.</p>
     </section>
 
     <form
-      class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden"
+      class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden"
       @submit.prevent="createUser"
     >
       <header class="px-6 pt-5 pb-2">
         <h2 class="text-base font-semibold">Add a user</h2>
-        <p class="text-xs text-zinc-500 mt-0.5">
+        <p class="text-xs text-slate-500 mt-0.5">
           The email domain must be allow-listed in PocketBase's users collection.
         </p>
       </header>
@@ -184,31 +184,31 @@ onMounted(load)
       <section class="px-6 pb-5 pt-3">
         <div class="grid gap-3 sm:grid-cols-[2fr_2fr_1fr]">
           <label class="block text-sm">
-            <span class="text-zinc-700 dark:text-zinc-300 font-medium">Email</span>
+            <span class="text-slate-700 dark:text-slate-300 font-medium">Email</span>
             <input
               v-model="newEmail"
               type="email"
               required
               placeholder="user@example.com"
-              class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm focus:outline-none focus:border-brand-blue"
+              class="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm focus:outline-none focus:border-primary"
             />
           </label>
           <label class="block text-sm">
-            <span class="text-zinc-700 dark:text-zinc-300 font-medium">Password</span>
+            <span class="text-slate-700 dark:text-slate-300 font-medium">Password</span>
             <input
               v-model="newPassword"
               type="password"
               required
               placeholder="≥ 8 characters"
               autocomplete="new-password"
-              class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm focus:outline-none focus:border-brand-blue"
+              class="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm focus:outline-none focus:border-primary"
             />
           </label>
           <label class="block text-sm">
-            <span class="text-zinc-700 dark:text-zinc-300 font-medium">Role</span>
+            <span class="text-slate-700 dark:text-slate-300 font-medium">Role</span>
             <select
               v-model="newRole"
-              class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm focus:outline-none focus:border-brand-blue"
+              class="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm focus:outline-none focus:border-primary"
             >
               <option value="admin">admin</option>
               <option value="editor">editor</option>
@@ -219,12 +219,12 @@ onMounted(load)
       </section>
 
       <div
-        class="flex items-center justify-end gap-3 px-6 py-4 bg-zinc-50 dark:bg-zinc-950/40 border-t border-zinc-200 dark:border-zinc-800"
+        class="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 dark:bg-slate-950/40 border-t border-slate-200 dark:border-slate-800"
       >
         <button
           type="submit"
           :disabled="creating"
-          class="rounded-md bg-brand-red hover:bg-brand-red-hover text-white px-4 py-1.5 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          class="rounded-lg bg-primary hover:bg-primary-hover text-white px-4 py-1.5 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {{ creating ? 'Creating…' : 'Create user' }}
         </button>

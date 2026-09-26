@@ -25,9 +25,9 @@ const isActive = computed(
 <template>
   <li>
     <div
-      class="flex items-center rounded text-[15px] hover:bg-zinc-100 dark:hover:bg-zinc-800"
+      class="flex items-center rounded text-[15px] hover:bg-slate-100 dark:hover:bg-slate-800"
       :class="{
-        'bg-brand-blue/10 text-brand-blue dark:text-brand-blue-dark font-medium': isActive,
+        'bg-primary/10 text-primary font-medium': isActive,
       }"
       :data-active="isActive ? 'true' : null"
       :style="{ paddingLeft: 4 + depth * 12 + 'px' }"
@@ -39,7 +39,7 @@ const isActive = computed(
       <button
         v-if="hasChildren"
         type="button"
-        class="shrink-0 w-9 h-9 flex items-center justify-center text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+        class="shrink-0 w-9 h-9 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
         :aria-label="isOpen ? 'Collapse' : 'Expand'"
         :aria-expanded="isOpen"
         @click="onToggle(node.fullPath)"

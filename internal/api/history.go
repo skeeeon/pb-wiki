@@ -6,24 +6,20 @@ import (
 	"strings"
 
 	"github.com/pocketbase/dbx"
-	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/types"
-
-	"github.com/skeeeon/pb-wiki/internal/access"
-	"github.com/skeeeon/pb-wiki/internal/hooks"
 )
 
 // RegisterHistory wires GET /api/wiki/history onto the app router. The handler
-// resolves a document by path, enforces pb-wiki's path-based access rules, and
+// resolves a document by path, checks it against the documents ViewRule, and
 // returns a curated list of revisions sourced from pb-audit's `audit_logs`
 // collection. We funnel through this endpoint (rather than letting the
 // frontend query audit_logs directly) so:
 //
 //   - audit_logs keeps its admin-only PB rules intact;
 //   - the response shape is curated (no IP/auth_method/etc. leaked to viewers);
-//   - access denials hide existence (404, not 403) to match documents.go.
-func RegisterHistory(app *pocketbase.PocketBase) {
+//   - access denials hide existence (404, not 403) to match the record API.
+func RegisterHistory(app core.App) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 		se.Router.GET("/api/wiki/history", handleHistory)
 		return se.Next()
@@ -67,17 +63,12 @@ func handleHistory(e *core.RequestEvent) error {
 	}
 	doc := docs[0]
 
-	rules, err := hooks.LoadRules(e.App)
+	ok, err := canView(e, doc)
 	if err != nil {
-		return e.InternalServerError("Failed to load access rules.", err)
+		return e.InternalServerError("Failed to check access.", err)
 	}
-	cfg, err := hooks.LoadConfigFlags(e.App)
-	if err != nil {
-		return e.InternalServerError("Failed to load wiki config.", err)
-	}
-	user := hooks.RecordToUser(e.Auth)
-	if !access.CanAccess(path, user, rules, cfg.PrivateDefault, cfg.RequireLogin) {
-		// 404 (not 403) to hide existence, matching documents.go.
+	if !ok {
+		// 404 (not 403) to hide existence, matching the record API.
 		return e.NotFoundError("", nil)
 	}
 

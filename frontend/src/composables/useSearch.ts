@@ -143,7 +143,7 @@ export function highlightMatch(snippet: string, q: string): string {
   const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   return escaped.replace(
     new RegExp(escapedQ, 'gi'),
-    '<mark class="bg-brand-yellow/40 text-inherit rounded px-0.5">$&</mark>',
+    '<mark class="bg-warning/25 text-inherit rounded px-0.5">$&</mark>',
   )
 }
 

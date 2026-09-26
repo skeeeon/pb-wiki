@@ -5,7 +5,7 @@ A flat-feeling markdown wiki built on [PocketBase](https://pocketbase.io) + Vue 
 - **Single Go binary.** PocketBase is used as a Go framework; the Vue build is bundled into the binary via `//go:embed`.
 - **Markdown documents** organized by slash-separated paths (`engineering/runbooks/deploy`). The tree is implicit in the path; moving a subtree is a prefix update.
 - **Three roles**: `admin` / `editor` / `viewer`.
-- **Path-based access rules** with first-match-wins glob matching (ported 1:1 from leomoon-studios/wiki-go's `internal/auth/access.go`).
+- **Per-page access** (public / private / restricted to groups), enforced by native PocketBase collection rules. New pages inherit from their parent page.
 - **SSO via PocketBase OAuth providers** — combined with PocketBase's native `OnlyDomains` validator on the users `email` field, this replaces the need for oauth2-proxy in front of the app.
 - **Split-pane markdown editing** via [md-editor-v3](https://github.com/imzbf/md-editor-v3).
 
@@ -32,7 +32,7 @@ Then, in the PocketBase admin UI, add a row to the `users` collection (`email`, 
 ## Development
 
 ```bash
-# Backend — Go 1.25+, talks to PocketBase on :8090
+# Backend — Go 1.27+, talks to PocketBase on :8090
 go run . serve
 
 # Frontend — Vite dev server on :5173, proxies /api and /_ to :8090
@@ -57,21 +57,35 @@ The Vue build under `frontend/dist/` is embedded into the binary; redistributing
 
 `pb-wiki import <markdown-dir>` recursively imports a directory of markdown files into the `documents` collection. This is the input side of a git-ops authoring workflow: keep your content in a git repo as plain markdown and re-run the importer to upsert into the wiki. Imports are one-way — the wiki does not write back to disk.
 
-Each file must begin with YAML frontmatter declaring `path` (use `path: ""` for the homepage); `title` is optional and falls back to the first H1 in the body.
+Each file must begin with YAML frontmatter declaring `path` (use `path: ""` for the homepage). Everything else is optional:
 
 ```markdown
 ---
 path: getting-started/install
-title: Installation Guide
+title: Installation Guide   # default: the first H1 in the body
+access: private             # public | private | restricted; default: inherit from the parent page
+groups: [ops]               # group names for restricted; missing groups are created
+nav_order: 20               # sidebar position among siblings (then by name)
 ---
 # Installation Guide
 ...
 ```
 
-Records are matched by `path`, so re-running the import updates existing documents in place. Files without a `path` are logged and skipped; duplicate paths within the input tree are reported as an error before any writes happen.
+Relative links to other files in the tree, such as `[Deploy](../ops/deploy.md#rollback)`, are rewritten to wiki URLs (`/doc/ops/deploy#rollback`), so the source files still link correctly on disk and on a git host. A relative `.md` link that matches no imported file is left as it is and reported.
+
+Records are matched by `path`, so re-running the import updates existing documents in place. On an update, `access`, `groups` and `nav_order` only change when the frontmatter sets them. Parents are written before their children, so new pages inherit access from a parent created in the same run. Files without a `path` are logged and skipped; duplicate paths within the input tree are reported as an error before any writes happen.
 
 ```bash
 go run . import ./wiki        # or ./pb-wiki import ./wiki for the built binary
+```
+
+### Migrating from MkDocs
+
+[`scripts/mkdocs-convert`](./scripts/mkdocs-convert/main.go) copies an MkDocs `docs/` directory into import format: it adds `path` and `nav_order` frontmatter from the `mkdocs.yml` nav, turns `!!!` / `???` admonitions into titled `:::` callouts, writes a page for each nav section folder that lacks one, and reports `#anchor` links that won't resolve. The source is never modified.
+
+```bash
+go run ./scripts/mkdocs-convert -site ../my-docs -prefix handbook -out ./import
+go run . import ./import
 ```
 
 ### Exporting content
@@ -106,7 +120,7 @@ The resulting files round-trip cleanly through `pb-wiki import`. Caveats:
 
 For Claude Code or similar tooling, query the wiki live rather than working off an exported snapshot. A snapshot goes stale the moment someone edits a page, the record-ID filenames defeat name-based grep, and reading every body up-front burns context.
 
-The repo ships a Claude Code skill at [`.claude/skills/wiki/SKILL.md`](./.claude/skills/wiki/SKILL.md) that wraps [pb-cli](https://github.com/skeeeon/pb-cli) with an **index → fetch** pattern: list `title,path` first, pull `body` only for the page(s) you actually need, and route writes through a draft-and-confirm flow that respects the same path-based access rules the UI enforces. It activates automatically when an agent working in this repo is asked about "the wiki".
+The repo ships a Claude Code skill at [`.claude/skills/wiki/SKILL.md`](./.claude/skills/wiki/SKILL.md) that wraps [pb-cli](https://github.com/skeeeon/pb-cli) with an **index → fetch** pattern: list `title,path` first, pull `body` only for the page(s) you actually need, and route writes through a draft-and-confirm flow that respects the same page access the UI enforces. It activates automatically when an agent working in this repo is asked about "the wiki".
 
 One-time setup per machine:
 
@@ -124,13 +138,13 @@ CommonMark plus a small, opinionated set of extensions:
 
 | Feature | Syntax |
 |---|---|
-| Heading anchors | auto on `##`/`###` (id used by the TOC sidebar) |
+| Heading anchors | auto on every heading; lowercase, punctuation except `_` and `-` removed (same ids as GitHub and MkDocs) |
 | Task lists | `- [ ]` / `- [x]` |
 | Subscript | `~text~` |
 | Superscript | `^text^` |
 | Highlight | `==text==` |
 | Image caption | `![alt](url "caption")` → `<figure>` + `<figcaption>` |
-| Callouts | `::: note`, `::: tip`, `::: warning`, `::: danger` (close with `:::`) |
+| Callouts | `::: note`, `::: tip`, `::: warning`, `::: danger`, optionally followed by a title (`::: warning Back up first`); close with `:::` |
 | YouTube embeds | a line containing only a YouTube URL |
 | Mermaid diagrams | ` ```mermaid ` fenced block (library lazy-loaded on first use) |
 | Frontmatter table | leading `---` … `---` YAML block renders as a key/value table |
@@ -150,29 +164,25 @@ Migrations live in [`migrations/`](./migrations/) and self-register via `init()`
 
 | Collection | Purpose |
 |---|---|
-| `users` (auth) | Extends PB's stock collection with `role` (admin/editor/viewer) and `groups` (json array). |
-| `documents` | `path` (unique), `title`, `body` (markdown), `updated_by`. Empty `path` is the homepage. |
-| `assets` | Uploaded images embedded in markdown. Public file URLs. |
-| `access_rules` | `pattern`, `access` (public/private/restricted), `groups`, `priority`, `description`. First-match-wins. |
+| `users` (auth) | Extends PB's stock collection with `role` (admin/editor/viewer) and `groups` (relation to `groups`). |
+| `groups` | `name` (unique). Editors and admins can list them; only admins create or change them. |
+| `documents` | `path` (unique), `title`, `body` (markdown), `access` (public/private/restricted), `groups`, `updated_by`. Empty `path` is the homepage. |
+| `assets` | Uploaded images embedded in markdown. Each belongs to the first document that embeds it and follows that document's access. |
 | `wiki_config` | Singleton row: `title`, `private_default`, `require_login`, `default_landing_path`. |
 
 ## Permissions
 
-- **Role hierarchy** gates *actions*: only admin/editor can create/update/delete documents.
-- **Access rules** gate *paths*: rules are matched against `documents.path` (and the wiki's `private_default` flag is the fallback for unmatched paths). Admins bypass all rules.
+Every rule below is a native PocketBase collection rule, so the record API, list counts, pagination and realtime subscriptions all enforce the same thing.
+
+- **Each page has its own access.** `public`: anyone. `private`: any logged-in user. `restricted`: users who share at least one group with the page. Admins and PocketBase superusers read everything.
+- **New pages inherit.** A page created without an access setting copies `access` and `groups` from its nearest ancestor page; a top-level page gets `private` when `private_default` is on, else `public`.
+- **`require_login`** hides even public pages from anonymous visitors.
+- **Roles gate writes.** Admins and editors create pages, and can update or delete any page they can read.
+- **Only admins set `role` and `groups`.** Sign-up (password or OAuth) always creates a `viewer`; users can edit their own profile but not their role or groups.
+- **Images follow their page.** A page claims the uploaded images it embeds when it is saved; an image not yet in any page is visible to editors and admins only. Because `<img>` requests can't carry the `Authorization` header, the SPA mirrors the auth token into a `pbwiki_auth` cookie scoped to `/api/files/`, which the download hook reads.
 - **OAuth domain allow-list**: configured natively in PocketBase under Collections → `users` → `email` field → "Only domains" (set the list of allowed domains there). Applies to both password sign-up and OAuth.
 
-Path-glob syntax (matches wiki-go):
-
-| Pattern | Meaning |
-|---|---|
-| `*` | any run of characters within one path segment |
-| `**` | any run of characters across `/` |
-| `/foo/**` | matches `/foo`, `/foo/`, and any descendant — the trailing-`/**` "parent or any child" form |
-| `?` | one non-`/` character |
-| `/**` (bare) | matches `/` only (does **not** swallow the whole wiki) |
-
-See [`internal/access/`](./internal/access/) for the evaluator and its tests.
+Put the PocketBase admin UI (`/_/`) behind your reverse proxy's access control if the wiki is public.
 
 ## Project layout
 
@@ -181,8 +191,8 @@ pb-wiki/
 ├── main.go                      # pocketbase.New() + hooks + static embed
 ├── frontend.go                  # //go:embed all:frontend/dist
 ├── internal/
-│   ├── access/                  # path-rule evaluator (unit-tested, no PB import)
-│   ├── hooks/                   # document access enforcement, OAuth allow-list, default role
+│   ├── api/                     # search, history and bulk-move endpoints
+│   ├── hooks/                   # access inheritance, asset ownership + downloads, default role
 │   └── static/                  # SPA fallback handler mounted on PB router
 ├── migrations/                  # Go-style PB migrations
 └── frontend/                    # Vue 3 + Vite + TS + Tailwind v4 + Reka UI
@@ -202,7 +212,7 @@ pb-wiki/
 go test ./...
 ```
 
-- `internal/access` — covers glob translation, first-match precedence, admin bypass, group overlap, fail-closed unknown access levels, and the `require_login` lockdown flag.
+- `internal/hooks` — runs the real API against a fresh database: page access through list, view, realtime and search; group overlap; inheritance; write access; sign-up and self-edit escalation; image downloads; and a round trip of the migration from the old path rules.
 - `internal/importer` — covers YAML frontmatter parsing (BOM, CRLF, unterminated blocks, invalid YAML) and the H1 title fallback.
 
 ## License

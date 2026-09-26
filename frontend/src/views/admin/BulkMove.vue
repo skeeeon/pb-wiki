@@ -120,38 +120,38 @@ async function apply() {
 
     <header>
       <h1 class="text-xl font-semibold">Move pages</h1>
-      <p class="text-sm text-zinc-500">
+      <p class="text-sm text-slate-500">
         Rewrite the path prefix of an entire subtree in one transaction. Preview the affected
         documents before committing — the change is applied atomically and can't be undone.
       </p>
     </header>
 
     <form
-      class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden"
+      class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden"
       @submit.prevent="runPreview"
     >
       <section class="px-6 pt-5 pb-5 space-y-4">
         <div class="grid gap-3 sm:grid-cols-2">
           <label class="block text-sm">
-            <span class="text-zinc-700 dark:text-zinc-300 font-medium">From prefix</span>
+            <span class="text-slate-700 dark:text-slate-300 font-medium">From prefix</span>
             <input
               v-model="from"
               required
               placeholder="engineering/docs"
-              class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm font-mono focus:outline-none focus:border-brand-blue"
+              class="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm font-mono focus:outline-none focus:border-primary"
             />
-            <span class="mt-1.5 block text-xs text-zinc-500">
+            <span class="mt-1.5 block text-xs text-slate-500">
               The doc at this path and every descendant will be moved.
             </span>
           </label>
           <label class="block text-sm">
-            <span class="text-zinc-700 dark:text-zinc-300 font-medium">To prefix</span>
+            <span class="text-slate-700 dark:text-slate-300 font-medium">To prefix</span>
             <input
               v-model="to"
               placeholder="eng"
-              class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm font-mono focus:outline-none focus:border-brand-blue"
+              class="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm font-mono focus:outline-none focus:border-primary"
             />
-            <span class="mt-1.5 block text-xs text-zinc-500">
+            <span class="mt-1.5 block text-xs text-slate-500">
               Leave empty to land the subtree at the wiki root (homepage).
             </span>
           </label>
@@ -159,20 +159,20 @@ async function apply() {
       </section>
 
       <div
-        class="flex items-center justify-between gap-3 px-6 py-4 bg-zinc-50 dark:bg-zinc-950/40 border-t border-zinc-200 dark:border-zinc-800"
+        class="flex items-center justify-between gap-3 px-6 py-4 bg-slate-50 dark:bg-slate-950/40 border-t border-slate-200 dark:border-slate-800"
       >
         <p class="text-sm min-h-[1.25rem]">
           <span v-if="successMsg" class="text-green-600 dark:text-green-400">{{ successMsg }}</span>
           <span v-else-if="errorMsg" class="text-red-600 dark:text-red-400">{{ errorMsg }}</span>
           <span
             v-else-if="previewed && preview.length === 0"
-            class="text-zinc-500"
+            class="text-slate-500"
           >No matches.</span>
         </p>
         <button
           type="submit"
           :disabled="!canPreview || previewLoading"
-          class="rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 py-1.5 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          class="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 px-4 py-1.5 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {{ previewLoading ? 'Loading…' : 'Preview' }}
         </button>
@@ -181,24 +181,24 @@ async function apply() {
 
     <section
       v-if="preview.length > 0"
-      class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden"
+      class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden"
     >
       <header
-        class="flex items-baseline justify-between px-6 py-3 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200 dark:border-zinc-800"
+        class="flex items-baseline justify-between px-6 py-3 bg-slate-50 dark:bg-slate-950/40 border-b border-slate-200 dark:border-slate-800"
       >
         <h2 class="text-sm font-semibold">Preview</h2>
-        <span class="text-xs text-zinc-500">{{ preview.length }} affected</span>
+        <span class="text-xs text-slate-500">{{ preview.length }} affected</span>
       </header>
       <table class="w-full text-sm">
-        <thead class="text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wide">
-          <tr class="border-b border-zinc-200 dark:border-zinc-800">
+        <thead class="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide">
+          <tr class="border-b border-slate-200 dark:border-slate-800">
             <th class="text-left px-6 py-2 font-medium">From</th>
             <th class="text-left px-6 py-2 font-medium">To</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
+        <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
           <tr v-for="row in preview" :key="row.id">
-            <td class="px-6 py-2 font-mono text-xs text-zinc-700 dark:text-zinc-300">
+            <td class="px-6 py-2 font-mono text-xs text-slate-700 dark:text-slate-300">
               {{ row.from || '(homepage)' }}
             </td>
             <td class="px-6 py-2 font-mono text-xs">
@@ -209,12 +209,12 @@ async function apply() {
       </table>
 
       <div
-        class="flex items-center justify-end gap-3 px-6 py-4 bg-zinc-50 dark:bg-zinc-950/40 border-t border-zinc-200 dark:border-zinc-800"
+        class="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 dark:bg-slate-950/40 border-t border-slate-200 dark:border-slate-800"
       >
         <button
           type="button"
           :disabled="applying"
-          class="rounded-md bg-brand-red hover:bg-brand-red-hover text-white px-4 py-1.5 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          class="rounded-lg bg-primary hover:bg-primary-hover text-white px-4 py-1.5 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           @click="apply"
         >
           {{ applying ? 'Applying…' : `Apply move (${preview.length})` }}

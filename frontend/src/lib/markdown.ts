@@ -24,13 +24,14 @@ export interface RenderedDoc {
   showToc: boolean
 }
 
-// Slug: lowercase, strip punctuation, collapse whitespace to '-'. Trimmed of
-// leading/trailing dashes. Matches what the TOC links to and what
-// markdown-it-anchor stamps on each heading_open token.
+// Slug: lowercase, strip punctuation except '_' and '-', collapse whitespace
+// to '-'. Matches what the TOC links to and what markdown-it-anchor stamps
+// on each heading_open token. Keeping '_' matches GitHub and MkDocs, so
+// imported #anchor links keep working.
 export function slugify(text: string): string {
   return text
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
     .trim()
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
@@ -64,6 +65,8 @@ md.renderer.rules.link_open = (tokens, idx, opts, env, self) => {
 }
 
 // Installs our ::: note / tip / warning / danger ::: callout containers.
+// Text after the type is the title, rendered as inline markdown
+// (`::: warning Back up `prod` first`); without it the title is the type name.
 // Exported so the editor preview (md-editor-v3) can use the same syntax via
 // its `markdownItConfig` hook — it ships its own !!! admonition, heading
 // IDs, and task lists, but not our :::-style callouts.
@@ -72,7 +75,8 @@ export function applyCalloutContainers(md: MarkdownIt) {
     md.use(container, name, {
       render(tokens: Token[], idx: number) {
         if (tokens[idx].nesting === 1) {
-          return `<div class="callout callout-${name}"><div class="callout-title">${name}</div>\n`
+          const title = tokens[idx].info.trim().slice(name.length).trim() || name
+          return `<div class="callout callout-${name}"><div class="callout-title">${md.renderInline(title)}</div>\n`
         }
         return `</div>\n`
       },
