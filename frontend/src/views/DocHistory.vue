@@ -193,23 +193,23 @@ watch([selectedId, mode], () => {
     <header class="flex items-baseline justify-between gap-4 flex-wrap">
       <div>
         <h1 class="text-3xl font-semibold">History</h1>
-        <p class="text-xs text-zinc-500 mt-1">
+        <p class="text-xs text-slate-500 mt-1">
           <code>{{ path || '/' }}</code>
         </p>
       </div>
       <RouterLink
         :to="docTo"
-        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm"
+        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm"
       >
         ← Back to page
       </RouterLink>
     </header>
 
-    <div v-if="loading" class="text-zinc-500 text-sm">Loading…</div>
+    <div v-if="loading" class="text-slate-500 text-sm">Loading…</div>
 
     <section v-else-if="notFound" class="space-y-2">
       <h2 class="text-xl font-medium">No history available</h2>
-      <p class="text-sm text-zinc-600 dark:text-zinc-400">
+      <p class="text-sm text-slate-600 dark:text-slate-400">
         Either this page doesn't exist or you don't have access to it.
       </p>
     </section>
@@ -218,7 +218,7 @@ watch([selectedId, mode], () => {
       {{ String(error) }}
     </section>
 
-    <section v-else-if="revisions.length === 0" class="text-sm text-zinc-600 dark:text-zinc-400">
+    <section v-else-if="revisions.length === 0" class="text-sm text-slate-600 dark:text-slate-400">
       No revisions captured yet — pb-audit only records changes made after it
       was enabled, so older pages may not have history until they're next
       edited.
@@ -235,7 +235,7 @@ watch([selectedId, mode], () => {
            view while the preview pane scrolls. -->
       <aside class="lg:sticky lg:top-4">
         <ul
-          class="divide-y divide-zinc-200 dark:divide-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded max-h-[calc(100vh-8rem)] overflow-y-auto"
+          class="divide-y divide-slate-200 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded max-h-[calc(100vh-8rem)] overflow-y-auto"
         >
           <li v-for="r in revisions" :key="r.id">
             <button
@@ -243,8 +243,8 @@ watch([selectedId, mode], () => {
               class="w-full text-left px-3 py-2 flex flex-col gap-1 transition-colors"
               :class="
                 selectedId === r.id
-                  ? 'bg-brand-blue/10 dark:bg-brand-blue-dark/15 border-l-2 border-brand-blue dark:border-brand-blue-dark'
-                  : 'border-l-2 border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                  ? 'bg-primary/10/15 border-l-2 border-primary'
+                  : 'border-l-2 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800'
               "
               @click="selectedId = r.id"
             >
@@ -254,25 +254,25 @@ watch([selectedId, mode], () => {
                   :class="
                     r.event_type === 'create'
                       ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200'
-                      : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
+                      : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
                   "
                 >
                   {{ r.event_type }}
                 </span>
                 <span
                   v-if="r.id === latestId"
-                  class="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0 bg-brand-blue/15 text-brand-blue dark:bg-brand-blue-dark/20 dark:text-brand-blue-dark"
+                  class="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0 bg-primary/15 text-primary/20"
                 >
                   current
                 </span>
                 <time
-                  class="text-sm text-zinc-700 dark:text-zinc-300 truncate"
+                  class="text-sm text-slate-700 dark:text-slate-300 truncate"
                   :title="formatTime(r.timestamp)"
                 >
                   {{ relativeTime(r.timestamp) }}
                 </time>
               </div>
-              <div class="flex items-center justify-between text-xs text-zinc-500 gap-2">
+              <div class="flex items-center justify-between text-xs text-slate-500 gap-2">
                 <span class="truncate">{{ editorOf(r) }}</span>
                 <span class="shrink-0 font-mono">
                   <span class="text-emerald-700 dark:text-emerald-400">+{{ editStats(r).added }}</span>
@@ -294,7 +294,7 @@ watch([selectedId, mode], () => {
       <!-- Right pane: preview with mode toggle. -->
       <div ref="previewEl" class="space-y-3 min-w-0">
         <div
-          class="inline-flex rounded border border-zinc-300 dark:border-zinc-700 overflow-hidden text-xs"
+          class="inline-flex rounded border border-slate-300 dark:border-slate-700 overflow-hidden text-xs"
           role="tablist"
         >
           <button
@@ -304,8 +304,8 @@ watch([selectedId, mode], () => {
             class="px-2.5 py-1.5 transition-colors"
             :class="
               mode === 'rendered'
-                ? 'bg-zinc-200 dark:bg-zinc-700 font-medium'
-                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                ? 'bg-slate-200 dark:bg-slate-700 font-medium'
+                : 'hover:bg-slate-100 dark:hover:bg-slate-800'
             "
             @click="mode = 'rendered'"
           >
@@ -315,11 +315,11 @@ watch([selectedId, mode], () => {
             type="button"
             role="tab"
             :aria-selected="mode === 'diff-edit'"
-            class="px-2.5 py-1.5 border-l border-zinc-300 dark:border-zinc-700 transition-colors"
+            class="px-2.5 py-1.5 border-l border-slate-300 dark:border-slate-700 transition-colors"
             :class="
               mode === 'diff-edit'
-                ? 'bg-zinc-200 dark:bg-zinc-700 font-medium'
-                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                ? 'bg-slate-200 dark:bg-slate-700 font-medium'
+                : 'hover:bg-slate-100 dark:hover:bg-slate-800'
             "
             @click="mode = 'diff-edit'"
           >
@@ -329,11 +329,11 @@ watch([selectedId, mode], () => {
             type="button"
             role="tab"
             :aria-selected="mode === 'diff-current'"
-            class="px-2.5 py-1.5 border-l border-zinc-300 dark:border-zinc-700 transition-colors"
+            class="px-2.5 py-1.5 border-l border-slate-300 dark:border-slate-700 transition-colors"
             :class="
               mode === 'diff-current'
-                ? 'bg-zinc-200 dark:bg-zinc-700 font-medium'
-                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                ? 'bg-slate-200 dark:bg-slate-700 font-medium'
+                : 'hover:bg-slate-100 dark:hover:bg-slate-800'
             "
             @click="mode = 'diff-current'"
           >
@@ -343,11 +343,11 @@ watch([selectedId, mode], () => {
             type="button"
             role="tab"
             :aria-selected="mode === 'raw'"
-            class="px-2.5 py-1.5 border-l border-zinc-300 dark:border-zinc-700 transition-colors"
+            class="px-2.5 py-1.5 border-l border-slate-300 dark:border-slate-700 transition-colors"
             :class="
               mode === 'raw'
-                ? 'bg-zinc-200 dark:bg-zinc-700 font-medium'
-                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                ? 'bg-slate-200 dark:bg-slate-700 font-medium'
+                : 'hover:bg-slate-100 dark:hover:bg-slate-800'
             "
             @click="mode = 'raw'"
           >
@@ -356,7 +356,7 @@ watch([selectedId, mode], () => {
         </div>
 
         <div v-if="selected" class="space-y-2">
-          <div class="text-xs text-zinc-500">
+          <div class="text-xs text-slate-500">
             <time :title="formatTime(selected.timestamp)">{{ relativeTime(selected.timestamp) }}</time>
             · by {{ editorOf(selected) }}
             · <code>{{ selected.event_type }}</code>
@@ -364,20 +364,20 @@ watch([selectedId, mode], () => {
 
           <div
             v-if="mode === 'rendered'"
-            class="rounded border border-zinc-200 dark:border-zinc-800 p-4 bg-white dark:bg-zinc-900"
+            class="rounded border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900"
           >
             <MarkdownView :html="renderedHtml" />
           </div>
 
           <pre
             v-else-if="mode === 'raw'"
-            class="text-xs leading-snug font-mono whitespace-pre-wrap overflow-x-auto bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded p-3 text-zinc-700 dark:text-zinc-300"
+            class="text-xs leading-snug font-mono whitespace-pre-wrap overflow-x-auto bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded p-3 text-slate-700 dark:text-slate-300"
           >{{ previewRaw }}</pre>
 
           <template v-else>
             <p
               v-if="previewDiff.every((l) => l.kind === 'eq')"
-              class="text-xs italic text-zinc-500 px-1"
+              class="text-xs italic text-slate-500 px-1"
             >
               <template v-if="mode === 'diff-current'">
                 <template v-if="isLatestSelected">This is the current version.</template>
@@ -388,7 +388,7 @@ watch([selectedId, mode], () => {
               </template>
             </p>
             <template v-else>
-              <p class="text-[11px] text-zinc-500 px-1">
+              <p class="text-[11px] text-slate-500 px-1">
                 <template v-if="mode === 'diff-edit'">
                   <span class="text-emerald-700 dark:text-emerald-400">+ added in this edit</span>
                   ·
@@ -401,7 +401,7 @@ watch([selectedId, mode], () => {
                 </template>
               </p>
               <pre
-                class="text-xs leading-snug font-mono whitespace-pre-wrap overflow-x-auto bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded p-3"
+                class="text-xs leading-snug font-mono whitespace-pre-wrap overflow-x-auto bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded p-3"
               ><template v-for="(line, idx) in previewDiff" :key="idx"><span
                     v-if="line.kind === 'add'"
                     class="block bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200"
@@ -410,7 +410,7 @@ watch([selectedId, mode], () => {
                     class="block bg-red-50 dark:bg-red-950/50 text-red-900 dark:text-red-200"
                   >− {{ line.text }}</span><span
                     v-else
-                    class="block text-zinc-600 dark:text-zinc-400"
+                    class="block text-slate-600 dark:text-slate-400"
                   >  {{ line.text }}</span></template></pre>
             </template>
           </template>

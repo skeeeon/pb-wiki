@@ -152,14 +152,14 @@ async function deleteDoc() {
       <nav class="flex items-center gap-2 text-sm">
         <RouterLink
           :to="cancelTo"
-          class="inline-flex items-center px-3 py-1.5 rounded-md border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          class="inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
         >
           Cancel
         </RouterLink>
         <button
           type="button"
           :disabled="saving || (mode === 'edit' && loading)"
-          class="rounded-md bg-brand-red hover:bg-brand-red-hover text-white px-3 py-1.5 font-medium disabled:opacity-60"
+          class="rounded-lg bg-primary hover:bg-primary-hover text-white px-3 py-1.5 font-medium disabled:opacity-60"
           @click="save"
         >
           {{ saving ? 'Saving…' : 'Save' }}
@@ -169,35 +169,35 @@ async function deleteDoc() {
 
     <div class="grid gap-3 sm:grid-cols-[1fr_2fr]">
       <label class="block text-sm">
-        <span class="text-zinc-700 dark:text-zinc-300">Path</span>
+        <span class="text-slate-700 dark:text-slate-300">Path</span>
         <input
           v-model="newPath"
-          class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm font-mono"
+          class="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm font-mono"
           placeholder="engineering/runbooks/deploy"
         />
       </label>
       <label class="block text-sm">
-        <span class="text-zinc-700 dark:text-zinc-300">Title</span>
+        <span class="text-slate-700 dark:text-slate-300">Title</span>
         <input
           v-model="title"
-          class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm"
+          class="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
         />
       </label>
       <label class="block text-sm">
-        <span class="text-zinc-700 dark:text-zinc-300">Sidebar position</span>
+        <span class="text-slate-700 dark:text-slate-300">Sidebar position</span>
         <input
           v-model.number="navOrder"
           type="number"
           step="1"
           title="Siblings sort by this number, then by name"
-          class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm"
+          class="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
         />
       </label>
       <label class="block text-sm">
-        <span class="text-zinc-700 dark:text-zinc-300">Access</span>
+        <span class="text-slate-700 dark:text-slate-300">Access</span>
         <select
           v-model="access"
-          class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm"
+          class="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
         >
           <option v-if="mode === 'new'" value="">Same as parent page</option>
           <option value="public">Public: anyone</option>
@@ -206,11 +206,11 @@ async function deleteDoc() {
         </select>
       </label>
       <label v-if="access === 'restricted'" class="block text-sm">
-        <span class="text-zinc-700 dark:text-zinc-300">Groups</span>
+        <span class="text-slate-700 dark:text-slate-300">Groups</span>
         <input
           v-model="groupsText"
           placeholder="comma, separated, groups"
-          class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm font-mono"
+          class="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm font-mono"
         />
       </label>
     </div>
@@ -231,12 +231,12 @@ async function deleteDoc() {
          the primary Save/Cancel actions so it's never a mis-click. -->
     <section
       v-if="mode === 'edit' && doc"
-      class="mt-8 rounded-md border border-red-200 dark:border-red-900/50 p-4"
+      class="mt-8 rounded-lg border border-red-200 dark:border-red-900/50 p-4"
     >
       <div class="flex items-start justify-between gap-4 flex-wrap">
         <div class="min-w-0">
           <h2 class="text-sm font-semibold text-red-700 dark:text-red-400">Danger zone</h2>
-          <p class="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
+          <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">
             Deleting <code class="font-mono">{{ doc.path || '/' }}</code> is permanent.
             Children at deeper paths are not removed automatically.
           </p>
@@ -245,7 +245,7 @@ async function deleteDoc() {
           <AlertDialogTrigger
             as="button"
             type="button"
-            class="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-red-300 dark:border-red-900/70 text-red-700 dark:text-red-400 px-3 py-1.5 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-950/30"
+            class="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-red-300 dark:border-red-900/70 text-red-700 dark:text-red-400 px-3 py-1.5 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-950/30"
           >
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="3 6 5 6 21 6" />
@@ -258,13 +258,13 @@ async function deleteDoc() {
           <AlertDialogPortal>
             <AlertDialogOverlay class="fixed inset-0 z-[80] bg-black/50 data-[state=open]:animate-in data-[state=open]:fade-in" />
             <AlertDialogContent
-              class="fixed left-1/2 top-1/2 z-[81] w-[min(90vw,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xl focus:outline-none"
+              class="fixed left-1/2 top-1/2 z-[81] w-[min(90vw,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xl focus:outline-none"
             >
               <AlertDialogTitle class="text-base font-semibold">
                 Delete this page?
               </AlertDialogTitle>
-              <AlertDialogDescription class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                <span class="font-medium text-zinc-900 dark:text-zinc-100">
+              <AlertDialogDescription class="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                <span class="font-medium text-slate-900 dark:text-slate-100">
                   {{ doc.title || doc.path || 'Untitled' }}
                 </span>
                 will be permanently removed. This cannot be undone.
@@ -273,7 +273,7 @@ async function deleteDoc() {
                 <AlertDialogCancel
                   as="button"
                   type="button"
-                  class="inline-flex items-center rounded-md border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  class="inline-flex items-center rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </AlertDialogCancel>
@@ -281,7 +281,7 @@ async function deleteDoc() {
                   as="button"
                   type="button"
                   :disabled="deleting"
-                  class="inline-flex items-center rounded-md bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 text-sm font-medium disabled:opacity-60"
+                  class="inline-flex items-center rounded-lg bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 text-sm font-medium disabled:opacity-60"
                   @click="deleteDoc"
                 >
                   {{ deleting ? 'Deleting…' : 'Delete' }}

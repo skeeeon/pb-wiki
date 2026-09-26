@@ -107,11 +107,11 @@ watch(
   <div class="max-w-5xl mx-auto space-y-4">
     <Breadcrumbs :path="path" />
 
-    <div v-if="loading" class="text-zinc-500 text-sm">Loading…</div>
+    <div v-if="loading" class="text-slate-500 text-sm">Loading…</div>
 
     <section v-else-if="notFound" class="space-y-3">
       <h1 class="text-2xl font-semibold">Not found</h1>
-      <p class="text-zinc-600 dark:text-zinc-400 text-sm">
+      <p class="text-slate-600 dark:text-slate-400 text-sm">
         No document at <code>{{ path || '/' }}</code>.
       </p>
       <RouterLink
@@ -134,7 +134,7 @@ watch(
           <nav class="flex items-center gap-2 text-sm">
             <RouterLink
               :to="historyTo"
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10" />
@@ -145,7 +145,7 @@ watch(
             <template v-if="auth.isEditor">
               <RouterLink
                 :to="editTo"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -155,7 +155,7 @@ watch(
               </RouterLink>
               <RouterLink
                 :to="newChildTo"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="12" y1="5" x2="12" y2="19" />
@@ -166,7 +166,7 @@ watch(
             </template>
           </nav>
         </div>
-        <p v-if="editedRelative" class="text-xs text-zinc-500">
+        <p v-if="editedRelative" class="text-xs text-slate-500">
           Edited <time :title="editedAbsolute ?? ''">{{ editedRelative }}</time>
           <template v-if="editorName"> by {{ editorName }}</template>
         </p>
@@ -177,9 +177,9 @@ watch(
       <details
         v-if="showToc"
         ref="inlineTocEl"
-        class="lg:hidden rounded-md border border-zinc-200 dark:border-zinc-800 px-3 py-2"
+        class="lg:hidden rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2"
       >
-        <summary class="text-sm font-medium cursor-pointer select-none text-zinc-700 dark:text-zinc-300">
+        <summary class="text-sm font-medium cursor-pointer select-none text-slate-700 dark:text-slate-300">
           On this page
         </summary>
         <div class="pt-2">
@@ -217,7 +217,7 @@ watch(
           as="button"
           type="button"
           aria-label="On this page"
-          class="lg:hidden fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40 w-12 h-12 rounded-full bg-white/90 dark:bg-zinc-900/80 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 text-brand-blue dark:text-brand-blue-dark shadow-lg shadow-brand-blue/10 dark:shadow-black/40 flex items-center justify-center hover:border-brand-blue/40 dark:hover:border-brand-blue-dark/40 hover:bg-white dark:hover:bg-zinc-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue"
+          class="lg:hidden fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40 w-12 h-12 rounded-full bg-white/90 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200 dark:border-slate-700 text-primary shadow-lg shadow-primary/10 dark:shadow-black/40 flex items-center justify-center hover:border-primary/40/40 hover:bg-white dark:hover:bg-slate-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="8" y1="6" x2="21" y2="6" />
@@ -234,7 +234,7 @@ watch(
             align="end"
             :side-offset="8"
             :collision-padding="16"
-            class="lg:hidden z-50 w-[min(20rem,calc(100vw-2rem))] max-h-[60vh] overflow-y-auto rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 shadow-lg focus:outline-none"
+            class="lg:hidden z-50 w-[min(20rem,calc(100vw-2rem))] max-h-[60vh] overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-lg focus:outline-none"
             @click="onPopoverClick"
           >
             <TocSidebar

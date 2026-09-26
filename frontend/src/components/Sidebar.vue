@@ -123,7 +123,7 @@ function toggleExpand(path: string) {
                here on mobile to avoid two toggles in the same viewport. -->
           <button
             type="button"
-            class="hidden md:block shrink-0 p-1.5 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            class="hidden md:block shrink-0 p-1.5 rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
             :title="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
             :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
             @click="toggleTheme"
@@ -140,7 +140,7 @@ function toggleExpand(path: string) {
           <button
             ref="closeBtn"
             type="button"
-            class="md:hidden shrink-0 p-2 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            class="md:hidden shrink-0 p-2 rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
             aria-label="Close menu"
             @click="emit('close')"
           >
@@ -157,7 +157,7 @@ function toggleExpand(path: string) {
 
       <div class="relative">
         <svg
-          class="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none"
+          class="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -170,40 +170,40 @@ function toggleExpand(path: string) {
           v-model="q"
           type="search"
           placeholder="Search docs…"
-          class="w-full pl-8 pr-2 py-2 md:py-1.5 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-base md:text-sm focus:outline-none focus:border-brand-blue"
+          class="w-full pl-8 pr-2 py-2 md:py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-base md:text-sm focus:outline-none focus:border-primary"
         />
       </div>
     </div>
 
     <!-- Divider -->
-    <div class="shrink-0 border-t border-zinc-200 dark:border-zinc-800" />
+    <div class="shrink-0 border-t border-slate-200 dark:border-slate-800" />
 
     <!-- Tree / search results — the ONLY scrollable region in the sidebar. -->
     <div ref="scrollEl" class="flex-1 min-h-0 overflow-y-auto p-2">
       <!-- Search results — instant title/path matches + debounced body matches -->
       <ul v-if="isSearching" class="space-y-0.5">
-        <li v-if="results.length === 0 && !bodyLoading" class="text-sm text-zinc-500 px-2 py-1">
+        <li v-if="results.length === 0 && !bodyLoading" class="text-sm text-slate-500 px-2 py-1">
           No matches.
         </li>
         <li v-for="r in results" :key="r.id">
           <RouterLink
             :to="r.path === '' ? '/' : `/doc/${r.path}`"
-            class="block px-2 py-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            class="block px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
             :class="{
-              'bg-brand-blue/10 text-brand-blue dark:text-brand-blue-dark font-medium':
+              'bg-primary/10 text-primary font-medium':
                 (r.path === '' && route.path === '/') || route.path === `/doc/${r.path}`,
             }"
           >
             <div class="text-[15px] truncate">{{ r.title || r.path || 'Home' }}</div>
-            <div v-if="r.path" class="text-xs text-zinc-500 truncate font-mono">{{ r.path }}</div>
+            <div v-if="r.path" class="text-xs text-slate-500 truncate font-mono">{{ r.path }}</div>
             <div
               v-if="r.snippet"
-              class="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 line-clamp-2"
+              class="text-xs text-slate-600 dark:text-slate-400 mt-0.5 line-clamp-2"
               v-html="highlightMatch(r.snippet, q)"
             />
           </RouterLink>
         </li>
-        <li v-if="bodyLoading" class="text-xs text-zinc-500 px-2 py-1.5 italic">
+        <li v-if="bodyLoading" class="text-xs text-slate-500 px-2 py-1.5 italic">
           Searching content…
         </li>
       </ul>
@@ -211,11 +211,11 @@ function toggleExpand(path: string) {
       <!-- Tree -->
       <template v-else>
         <div class="flex items-center justify-between mb-1 px-2">
-          <h2 class="text-xs uppercase tracking-wide text-zinc-500">Pages</h2>
+          <h2 class="text-xs uppercase tracking-wide text-slate-500">Pages</h2>
           <RouterLink
             v-if="auth.isEditor"
             to="/new/"
-            class="text-xs text-zinc-500 hover:underline"
+            class="text-xs text-slate-500 hover:underline"
             title="Create a new top-level page"
           >
             + New
@@ -225,9 +225,9 @@ function toggleExpand(path: string) {
         <RouterLink
           v-if="hasHome"
           to="/"
-          class="flex items-center py-1 px-2 rounded text-[15px] hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          class="flex items-center py-1 px-2 rounded text-[15px] hover:bg-slate-100 dark:hover:bg-slate-800"
           :class="{
-            'bg-brand-blue/10 text-brand-blue dark:text-brand-blue-dark font-medium': route.path === '/',
+            'bg-primary/10 text-primary font-medium': route.path === '/',
           }"
           :data-active="route.path === '/' ? 'true' : null"
         >
@@ -244,27 +244,27 @@ function toggleExpand(path: string) {
             :on-toggle="toggleExpand"
           />
         </ul>
-        <p v-else-if="loading" class="text-sm text-zinc-500 px-2 py-1">Loading…</p>
+        <p v-else-if="loading" class="text-sm text-slate-500 px-2 py-1">Loading…</p>
         <p v-else-if="error" class="text-sm text-red-600 dark:text-red-400 px-2 py-1">
           {{ error instanceof Error ? error.message : String(error) }}
         </p>
-        <p v-else class="text-sm text-zinc-500 px-2 py-1">No pages yet.</p>
+        <p v-else class="text-sm text-slate-500 px-2 py-1">No pages yet.</p>
       </template>
     </div>
 
     <!-- User menu — pinned to bottom. Bottom padding extends for iOS PWA
          safe-area so the menu trigger isn't crowded against the home
          indicator. Theme toggle lives in the brand block at the top. -->
-    <div class="shrink-0 border-t border-zinc-200 dark:border-zinc-800 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+    <div class="shrink-0 border-t border-slate-200 dark:border-slate-800 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
       <template v-if="auth.isAuthenticated">
         <DropdownMenuRoot>
           <DropdownMenuTrigger
             as="button"
             type="button"
-            class="flex items-center gap-2 w-full p-1 -m-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue"
+            class="flex items-center gap-2 w-full p-1 -m-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             :aria-label="`Account menu for ${auth.record?.email}`"
             >
-              <div class="w-8 h-8 rounded-full bg-brand-blue text-white text-sm font-medium flex items-center justify-center shrink-0 overflow-hidden">
+              <div class="w-8 h-8 rounded-full bg-primary text-white text-sm font-medium flex items-center justify-center shrink-0 overflow-hidden">
                 <img
                   v-if="avatarUrl"
                   :src="avatarUrl"
@@ -275,9 +275,9 @@ function toggleExpand(path: string) {
               </div>
               <div class="min-w-0 flex-1 text-left">
                 <div class="text-sm truncate">{{ displayName }}</div>
-                <div class="text-xs text-zinc-500">{{ auth.role }}</div>
+                <div class="text-xs text-slate-500">{{ auth.role }}</div>
               </div>
-              <svg class="w-3.5 h-3.5 text-zinc-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="m6 9 6 6 6-6" />
               </svg>
             </DropdownMenuTrigger>
@@ -286,14 +286,14 @@ function toggleExpand(path: string) {
                 side="top"
                 align="start"
                 :side-offset="6"
-                class="min-w-[12rem] rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1 shadow-md text-sm focus:outline-none z-[60]"
+                class="min-w-[12rem] rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1 shadow-md text-sm focus:outline-none z-[60]"
               >
                 <DropdownMenuItem as-child>
                   <RouterLink
                     to="/account"
-                    class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer outline-none data-[highlighted]:bg-zinc-100 dark:data-[highlighted]:bg-zinc-800"
+                    class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer outline-none data-[highlighted]:bg-slate-100 dark:data-[highlighted]:bg-slate-800"
                   >
-                    <svg class="w-4 h-4 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                       <circle cx="12" cy="7" r="4" />
                     </svg>
@@ -306,9 +306,9 @@ function toggleExpand(path: string) {
                 >
                   <RouterLink
                     to="/admin"
-                    class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer outline-none data-[highlighted]:bg-zinc-100 dark:data-[highlighted]:bg-zinc-800"
+                    class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer outline-none data-[highlighted]:bg-slate-100 dark:data-[highlighted]:bg-slate-800"
                   >
-                    <svg class="w-4 h-4 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <circle cx="12" cy="12" r="3" />
                       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                     </svg>
@@ -316,10 +316,10 @@ function toggleExpand(path: string) {
                   </RouterLink>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator
-                  class="h-px my-1 bg-zinc-200 dark:bg-zinc-800"
+                  class="h-px my-1 bg-slate-200 dark:bg-slate-800"
                 />
                 <DropdownMenuItem
-                  class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer outline-none data-[highlighted]:bg-zinc-100 dark:data-[highlighted]:bg-zinc-800 text-red-600 dark:text-red-400"
+                  class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer outline-none data-[highlighted]:bg-slate-100 dark:data-[highlighted]:bg-slate-800 text-red-600 dark:text-red-400"
                   @select="signOut"
                 >
                   <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -336,7 +336,7 @@ function toggleExpand(path: string) {
       <template v-else>
         <RouterLink
           to="/login"
-          class="block text-center rounded-md bg-brand-red hover:bg-brand-red-hover text-white text-sm font-medium px-3 py-1.5"
+          class="block text-center rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-medium px-3 py-1.5"
         >
           Sign in
         </RouterLink>

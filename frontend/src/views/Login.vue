@@ -87,53 +87,53 @@ function redirectAfterLogin() {
 </script>
 
 <template>
-  <div class="min-h-dvh flex items-center justify-center p-6 bg-zinc-50 dark:bg-zinc-950">
-    <div class="w-full max-w-sm space-y-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
+  <div class="min-h-dvh flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-950">
+    <div class="w-full max-w-sm space-y-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
       <header class="space-y-2 text-center">
         <div class="flex justify-center">
           <img src="/logo.svg" :alt="config.config?.title || 'pb-wiki'" class="h-14 block dark:hidden" />
           <img src="/logo-dark.svg" :alt="config.config?.title || 'pb-wiki'" class="h-14 hidden dark:block" />
         </div>
         <h1 class="text-xl font-semibold">{{ config.config?.title || 'pb-wiki' }}</h1>
-        <p class="text-sm text-zinc-500">{{ mode === 'register' ? 'Create account' : 'Sign in' }}</p>
+        <p class="text-sm text-slate-500">{{ mode === 'register' ? 'Create account' : 'Sign in' }}</p>
       </header>
 
       <form class="space-y-3" @submit.prevent="submitPassword">
         <label class="block text-sm">
-          <span class="text-zinc-700 dark:text-zinc-300">Email</span>
+          <span class="text-slate-700 dark:text-slate-300">Email</span>
           <input
             v-model="email"
             type="email"
             autocomplete="username"
             required
-            class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm"
+            class="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
           />
         </label>
         <label class="block text-sm">
-          <span class="text-zinc-700 dark:text-zinc-300">Password</span>
+          <span class="text-slate-700 dark:text-slate-300">Password</span>
           <input
             v-model="password"
             type="password"
             :autocomplete="mode === 'register' ? 'new-password' : 'current-password'"
             required
-            class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm"
+            class="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
           />
         </label>
         <label v-if="mode === 'register'" class="block text-sm">
-          <span class="text-zinc-700 dark:text-zinc-300">Confirm password</span>
+          <span class="text-slate-700 dark:text-slate-300">Confirm password</span>
           <input
             v-model="passwordConfirm"
             type="password"
             autocomplete="new-password"
             required
-            class="mt-1 block w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm"
+            class="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
           />
         </label>
 
         <button
           type="submit"
           :disabled="submitting"
-          class="w-full rounded-md bg-brand-red hover:bg-brand-red-hover text-white px-3 py-2 text-sm font-medium disabled:opacity-60"
+          class="w-full rounded-lg bg-primary hover:bg-primary-hover text-white px-3 py-2 text-sm font-medium disabled:opacity-60"
         >
           {{ submitting
             ? (mode === 'register' ? 'Creating account…' : 'Signing in…')
@@ -142,7 +142,7 @@ function redirectAfterLogin() {
         </button>
       </form>
 
-      <p class="text-center text-sm text-zinc-500">
+      <p class="text-center text-sm text-slate-500">
         <template v-if="mode === 'signin'">
           Don't have an account?
           <button type="button" class="underline" @click="switchMode('register')">
@@ -158,13 +158,13 @@ function redirectAfterLogin() {
       </p>
 
       <div v-if="providers.length > 0" class="space-y-2">
-        <div class="text-center text-xs uppercase tracking-wide text-zinc-500">or</div>
+        <div class="text-center text-xs uppercase tracking-wide text-slate-500">or</div>
         <button
           v-for="p in providers"
           :key="p.name"
           type="button"
           :disabled="submitting"
-          class="w-full rounded-md border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-60"
+          class="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-60"
           @click="submitOAuth(p.name)"
         >
           Continue with {{ p.displayName }}

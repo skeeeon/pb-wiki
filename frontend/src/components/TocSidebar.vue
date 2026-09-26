@@ -40,7 +40,7 @@ function scrollToTop(ev: MouseEvent) {
     <a
       v-if="pageTitle"
       href="#"
-      class="block mb-2 font-semibold text-zinc-900 dark:text-zinc-100 hover:text-brand-blue dark:hover:text-brand-blue-dark truncate"
+      class="block mb-2 font-semibold text-slate-900 dark:text-slate-100 hover:text-primary truncate"
       title="Scroll to top"
       @click="scrollToTop"
     >
@@ -48,13 +48,13 @@ function scrollToTop(ev: MouseEvent) {
     </a>
     <h2
       v-if="items.length > 0"
-      class="text-xs uppercase tracking-wide text-zinc-500 mb-2"
+      class="text-xs uppercase tracking-wide text-slate-500 mb-2"
     >
       Contents
     </h2>
     <ul
       v-if="items.length > 0"
-      class="space-y-1 border-l border-zinc-200 dark:border-zinc-800"
+      class="space-y-1 border-l border-slate-200 dark:border-slate-800"
     >
       <li
         v-for="h in items"
@@ -63,11 +63,11 @@ function scrollToTop(ev: MouseEvent) {
       >
         <a
           :href="`#${h.slug}`"
-          class="block py-0.5 truncate hover:text-brand-blue dark:hover:text-brand-blue-dark"
+          class="block py-0.5 truncate hover:text-primary"
           :class="
             activeSlug === h.slug
-              ? 'text-brand-blue dark:text-brand-blue-dark font-medium'
-              : 'text-zinc-600 dark:text-zinc-400'
+              ? 'text-primary font-medium'
+              : 'text-slate-600 dark:text-slate-400'
           "
           @click="scrollTo(h.slug, $event)"
         >
