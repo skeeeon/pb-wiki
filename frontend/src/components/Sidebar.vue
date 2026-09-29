@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
@@ -100,6 +100,32 @@ watch(
   { immediate: true },
 )
 
+// A link in the page body can open a page far down the tree. Scroll the tree
+// so that page's row shows. Sets scrollTop by hand: scrollIntoView would also
+// move the page behind the sidebar.
+function keepActiveInView() {
+  const box = scrollEl.value
+  const row = box?.querySelector<HTMLElement>('[data-active="true"]')
+  if (!box || !row) return
+  const b = box.getBoundingClientRect()
+  const r = row.getBoundingClientRect()
+  if (r.top < b.top || r.bottom > b.bottom) box.scrollTop += r.top - b.top - (b.height - r.height) / 2
+}
+// After the tree renders: on each navigation, and once the page list loads.
+watch([currentPath, docs], () => nextTick(keepActiveInView), { flush: 'post' })
+
+// "/" focuses search, as on most docs sites. Ignored while typing in a field.
+const searchInput = ref<HTMLInputElement | null>(null)
+function onKeydown(e: KeyboardEvent) {
+  if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return
+  const t = e.target
+  if (t instanceof Element && t.closest('input, textarea, select, [contenteditable="true"]')) return
+  e.preventDefault()
+  searchInput.value?.focus()
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+
 function toggleExpand(path: string) {
   if (expanded.value.has(path)) expanded.value.delete(path)
   else expanded.value.add(path)
@@ -167,9 +193,12 @@ function toggleExpand(path: string) {
           <path d="m21 21-4.3-4.3" />
         </svg>
         <input
+          ref="searchInput"
           v-model="q"
           type="search"
           placeholder="Search docs…"
+          title="Search (press /)"
+          aria-keyshortcuts="/"
           class="w-full pl-8 pr-2 py-2 md:py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-base md:text-sm focus:outline-none focus:border-primary"
         />
       </div>

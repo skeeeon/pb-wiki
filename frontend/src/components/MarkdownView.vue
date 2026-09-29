@@ -9,10 +9,40 @@ const container = ref<HTMLElement | null>(null)
 const { theme } = useTheme()
 const router = useRouter()
 
+// Every code block gets a Copy button. The block is wrapped so the button
+// stays in the corner when the code scrolls sideways. v-html replaces the
+// whole DOM on each change, so this runs on fresh blocks every time.
+async function addCopyButtons() {
+  await nextTick()
+  for (const pre of container.value?.querySelectorAll('pre:not(.mermaid)') ?? []) {
+    const wrap = document.createElement('div')
+    wrap.className = 'code-block'
+    pre.replaceWith(wrap)
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'copy-btn'
+    btn.textContent = 'Copy'
+    wrap.append(pre, btn)
+  }
+}
+
+async function copyCode(btn: HTMLElement) {
+  const code = btn.parentElement?.querySelector('pre')?.textContent ?? ''
+  try {
+    await navigator.clipboard.writeText(code)
+    btn.textContent = 'Copied'
+  } catch {
+    btn.textContent = 'Copy failed'
+  }
+  setTimeout(() => (btn.textContent = 'Copy'), 1500)
+}
+
 // Links to other wiki pages (/doc/…) navigate inside the SPA instead of
 // reloading it. Modified clicks (new tab etc.), other origins, API URLs and
 // links that open in a new tab keep the browser's default behaviour.
-function onLinkClick(ev: MouseEvent) {
+function onClick(ev: MouseEvent) {
+  const btn = (ev.target as HTMLElement | null)?.closest<HTMLElement>('.copy-btn')
+  if (btn) return void copyCode(btn)
   if (ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return
   const a = (ev.target as HTMLElement | null)?.closest('a')
   if (!a || a.target === '_blank' || !a.href) return
@@ -61,10 +91,11 @@ async function renderMermaid() {
 }
 
 watch([() => props.html, theme], renderMermaid, { immediate: true })
+watch(() => props.html, addCopyButtons, { immediate: true })
 </script>
 
 <template>
-  <div ref="container" class="markdown-body space-y-3 leading-relaxed" v-html="html" @click="onLinkClick" />
+  <div ref="container" class="markdown-body space-y-3 leading-relaxed" v-html="html" @click="onClick" />
 </template>
 
 <style>
@@ -92,6 +123,19 @@ watch([() => props.html, theme], renderMermaid, { immediate: true })
 .markdown-body code { padding: 0.125rem 0.25rem; border-radius: 0.25rem; background: var(--color-surface); border: 1px solid var(--color-line); font-size: 0.875rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .markdown-body pre  { padding: 0.75rem; border-radius: 0.5rem; background: var(--color-surface); border: 1px solid var(--color-line); overflow-x: auto; margin-bottom: 0.75rem; }
 .markdown-body pre code { background: transparent; border: 0; padding: 0; }
+
+/* Heading text links to its own section (lib/markdown.ts). It keeps the
+   heading's colour; the underline on hover shows it can be clicked. */
+.markdown-body a.header-anchor { color: inherit; text-decoration: none; }
+.markdown-body a.header-anchor:hover { text-decoration: underline; }
+
+/* Copy button on code blocks, added by addCopyButtons(). It shows on hover
+   or keyboard focus, and always on touch screens, which have no hover. */
+.markdown-body .code-block { position: relative; }
+.markdown-body .copy-btn { position: absolute; top: 0.375rem; right: 0.375rem; padding: 0.125rem 0.5rem; font-size: 0.75rem; border: 1px solid var(--color-line); border-radius: 0.25rem; background: var(--color-surface); color: var(--color-muted); opacity: 0; transition: opacity 150ms; }
+.markdown-body .code-block:hover .copy-btn, .markdown-body .copy-btn:focus-visible { opacity: 1; }
+.markdown-body .copy-btn:hover { color: inherit; }
+@media (hover: none) { .markdown-body .copy-btn { opacity: 1; } }
 .markdown-body blockquote { border-left: 4px solid var(--color-line); padding: 0.5rem 1rem; background: var(--color-surface); border-radius: 0 0.5rem 0.5rem 0; font-style: italic; color: var(--color-muted); margin-bottom: 0.75rem; }
 .markdown-body blockquote > p:last-child { margin-bottom: 0; }
 .markdown-body table { border-collapse: collapse; margin-bottom: 0.75rem; display: block; overflow-x: auto; max-width: 100%; }

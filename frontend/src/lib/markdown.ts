@@ -42,11 +42,11 @@ export function slugify(text: string): string {
 // breaks    — single newlines don't become <br>; require blank lines.
 const md = new MarkdownIt({ html: false, linkify: true, breaks: false })
 
-// No visible permalink — we just need `id` attributes so the TOC can scroll
-// to headings and so #fragment URLs work. The TOC sidebar carries the
-// "jump to section" affordance; an inline # would push heading text right
-// of the body's left edge whenever it appeared.
-md.use(anchor, { slugify })
+// Each heading gets an `id`, so the TOC and #fragment URLs work, and its
+// text becomes a link to itself, so a reader can copy a link to a section.
+// The link is the heading text, not an added # symbol, so the heading does
+// not move. MarkdownView styles it like plain heading text.
+md.use(anchor, { slugify, permalink: anchor.permalink.headerLink() })
 
 md.use(taskLists, { enabled: true, label: true })
 
@@ -130,8 +130,12 @@ function collectHeadings(tokens: ReturnType<typeof md.parse>): Heading[] {
     const t = tokens[i]
     if (t.type !== 'heading_open') continue
     const level = Number(t.tag.slice(1))
-    const inline = tokens[i + 1]
-    const text = inline?.content ?? ''
+    // The heading's text pieces, not inline.content: the headerLink
+    // permalink wraps the heading in a link and leaves content empty.
+    const text = (tokens[i + 1]?.children ?? [])
+      .filter((c) => c.type === 'text' || c.type === 'code_inline')
+      .map((c) => c.content)
+      .join('')
     const slug = t.attrGet('id') ?? slugify(text)
     headings.push({ level, text, slug })
   }

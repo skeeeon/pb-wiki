@@ -117,7 +117,10 @@ watch(
   <div class="max-w-6xl mx-auto space-y-4">
     <Breadcrumbs :path="path" />
 
-    <div v-if="loading" class="text-slate-500 text-sm">Loading…</div>
+    <!-- Only the first load shows this. Moving between pages keeps the old
+         page up until the new one arrives, so the page does not flash, and
+         back/forward can restore a scroll position deeper than "Loading…". -->
+    <div v-if="loading && !doc" class="text-slate-500 text-sm">Loading…</div>
 
     <section v-else-if="notFound" class="space-y-3">
       <h1 class="text-2xl font-semibold">Not found</h1>

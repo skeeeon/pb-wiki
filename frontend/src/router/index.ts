@@ -15,6 +15,15 @@ declare module 'vue-router' {
 
 const router = createRouter({
   history: createWebHistory(),
+  // A new page starts at the top. Back/forward returns to where the reader
+  // was. A #hash is left alone: DocView scrolls to the heading once the doc
+  // has rendered, which is after this runs.
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.hash) return false
+    if (to.path !== from.path) return { top: 0 }
+    return false
+  },
   routes: [
     // The homepage is the document with path "" — DocView resolves that case.
     { path: '/', name: 'home', component: () => import('@/views/DocView.vue'), props: () => ({ path: '' }) },
