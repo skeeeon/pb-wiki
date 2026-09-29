@@ -114,7 +114,7 @@ watch(
 </script>
 
 <template>
-  <div class="max-w-5xl mx-auto space-y-4">
+  <div class="max-w-6xl mx-auto space-y-4">
     <Breadcrumbs :path="path" />
 
     <div v-if="loading" class="text-slate-500 text-sm">Loading…</div>

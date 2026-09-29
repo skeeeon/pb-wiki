@@ -115,7 +115,7 @@ async function apply() {
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto space-y-6">
+  <div class="max-w-5xl mx-auto space-y-6">
     <AdminNav />
 
     <header>
