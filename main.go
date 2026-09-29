@@ -32,11 +32,16 @@ import (
 //     either constraint alone is enough, both together apply as an AND. Set
 //     MaxAge to 0 to disable age-based pruning; MaxRecords to 0 to disable the
 //     row cap. Interval is a cron expression for when the cleanup job runs.
+//   - SnapshotCollections — collections whose before/after VALUES are stored.
+//     Every other collection records only the names of the changed fields.
+//     Keep secrets out of this list: audit_logs has no per-row access rules.
 //
-// The History view (/api/wiki/history) relies on LogSuccessEvents — turning
-// that off makes per-doc history disappear from the UI.
+// The History view (/api/wiki/history) relies on LogSuccessEvents and on
+// "documents" being in SnapshotCollections — without either, per-doc history
+// disappears from the UI.
 var auditOptions = func() pbaudit.Options {
 	o := pbaudit.DefaultOptions()
+	o.SnapshotCollections = []string{"documents"}
 	o.Retention = &pbaudit.RetentionPolicy{
 		MaxAge:     365 * 24 * time.Hour, // keep one year of audit history
 		MaxRecords: 500_000,              // hard cap as a safety net
