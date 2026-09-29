@@ -42,6 +42,7 @@ func newApp(t *testing.T) *fixture {
 	t.Cleanup(app.Cleanup)
 	hooks.Register(app)
 	api.RegisterSearch(app)
+	api.RegisterBulkMove(app)
 
 	router, err := apis.NewRouter(app)
 	if err != nil {

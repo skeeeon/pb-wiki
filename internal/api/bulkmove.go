@@ -62,16 +62,17 @@ func handleBulkMove(e *core.RequestEvent) error {
 		return e.BadRequestError("'from' and 'to' are equal.", nil)
 	}
 
-	// path == from OR path starts with `from + "/"`. The `~` operator wraps
-	// literals with `%` by default, so `prefix` carries an explicit trailing
-	// `%` to opt into "starts with" rather than "contains".
-	affected, err := e.App.FindRecordsByFilter(
-		"documents",
-		"path = {:from} || path ~ {:prefix}",
-		"+path",
-		0, 0,
-		dbx.Params{"from": from, "prefix": from + "/%"},
-	)
+	// path == from OR path starts with `from + "/"`. A plain substr compare,
+	// not LIKE: in LIKE a `_` or `%` in `from` is a wildcard, so moving
+	// "my_docs" would also take "my-docs".
+	var affected []*core.Record
+	err := e.App.RecordQuery("documents").
+		AndWhere(dbx.Or(
+			dbx.HashExp{"path": from},
+			dbx.NewExp("substr(path, 1, length({:prefix})) = {:prefix}", dbx.Params{"prefix": from + "/"}),
+		)).
+		OrderBy("path ASC").
+		All(&affected)
 	if err != nil {
 		return e.InternalServerError("Failed to load documents.", err)
 	}
