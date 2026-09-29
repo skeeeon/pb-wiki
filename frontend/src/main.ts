@@ -39,6 +39,22 @@ mdEditorConfig({
 // render so there's no FOUC on first paint.
 import './composables/useTheme'
 
+// After a deploy, a tab opened on the old build still asks for the old
+// content-hashed chunks, which the new binary no longer has (the server
+// answers 404, see internal/static). Reload to pick up the new build. The
+// timestamp stops a reload loop if a chunk is missing from the new build too.
+window.addEventListener('vite:preloadError', () => {
+  const key = 'pb-wiki:chunk-reload'
+  try {
+    const last = Number(sessionStorage.getItem(key))
+    if (Date.now() - last < 10_000) return
+    sessionStorage.setItem(key, String(Date.now()))
+  } catch {
+    /* storage unavailable — reload anyway */
+  }
+  window.location.reload()
+})
+
 const app = createApp(App)
 app.use(createPinia())
 
@@ -60,9 +76,8 @@ if (config.loadFromStorage()) {
 app.use(router)
 app.mount('#app')
 
-// Register a tiny no-op service worker (public/sw.js) so the browser will
-// offer "Install app" / "Add to home screen". The SW does not cache or
-// intercept anything — it exists solely to satisfy installability.
+// Register a tiny service worker (public/sw.js). It does not cache or
+// intercept anything; it only clears caches left by the old offline worker.
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {
     /* registration failed (e.g. http dev preview); not fatal. */
