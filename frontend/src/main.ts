@@ -47,11 +47,13 @@ app.use(createPinia())
 // be present before the first route resolves, or a locked-down wiki could
 // leak a frame of content. We seed synchronously from localStorage when
 // possible (covers every visit after the first) and only block on the
-// network for a truly cold start. Admin changes to wiki_config propagate
-// on the next page reload, which is acceptable for fields that change
-// roughly never.
+// network for a truly cold start. A seeded start still refreshes the cache
+// in the background, so admin changes to wiki_config show up once that
+// request lands (and the router guard sees them from the next navigation).
 const config = useConfigStore()
-if (!config.loadFromStorage()) {
+if (config.loadFromStorage()) {
+  void config.load(true)
+} else {
   await config.load()
 }
 

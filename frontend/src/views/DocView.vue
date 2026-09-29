@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   PopoverRoot,
   PopoverTrigger,
@@ -12,6 +12,7 @@ import { useDoc } from '@/composables/useDoc'
 import { useDocumentTitle } from '@/composables/useDocumentTitle'
 import { useActiveHeading } from '@/composables/useActiveHeading'
 import { useAuthStore } from '@/stores/auth'
+import { useConfigStore } from '@/stores/config'
 import { renderDoc } from '@/lib/markdown'
 import type { UserRecord } from '@/lib/types'
 import Breadcrumbs from '@/components/Breadcrumbs.vue'
@@ -24,6 +25,15 @@ const route = useRoute()
 const auth = useAuthStore()
 
 const { doc, loading, notFound, error } = useDoc(() => path.value)
+
+// wiki_config.default_landing_path: when the root URL has no homepage
+// document, send the visitor to the landing page instead of "Not found".
+const router = useRouter()
+const config = useConfigStore()
+watch(notFound, (missing) => {
+  const landing = config.config?.default_landing_path
+  if (missing && path.value === '' && landing) void router.replace(`/doc/${landing}`)
+})
 
 useDocumentTitle(() => doc.value?.title || null)
 
