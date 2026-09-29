@@ -76,6 +76,10 @@ watch([() => props.html, theme], renderMermaid, { immediate: true })
    and the semantic colours), which switch in dark mode by themselves. Filled
    blocks follow the platform console's card idiom: the surface colour with a
    line-coloured border, on the page ground. */
+/* Long unbroken words (paths, URLs, identifiers in inline code) wrap instead
+   of widening the page on a phone. break-word, not anywhere: it leaves
+   min-content sizing alone, so wide tables still scroll rather than squeeze. */
+.markdown-body { overflow-wrap: break-word; }
 .markdown-body h1 { font-size: 1.5rem; line-height: 2rem; font-weight: 600; margin: 1.5rem 0 0.75rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--color-line); scroll-margin-top: 5rem; }
 .markdown-body h2 { font-size: 1.25rem; line-height: 1.75rem; font-weight: 600; margin: 1.25rem 0 0.5rem; padding-bottom: 0.25rem; border-bottom: 1px solid var(--color-line); scroll-margin-top: 5rem; }
 .markdown-body h3 { font-size: 1.125rem; line-height: 1.75rem; font-weight: 600; margin: 1rem 0 0.5rem; scroll-margin-top: 5rem; }
@@ -111,16 +115,21 @@ watch([() => props.html, theme], renderMermaid, { immediate: true })
 .markdown-body table.frontmatter { display: table; width: auto; font-size: 0.875rem; margin: 0 0 1rem 0; }
 .markdown-body table.frontmatter th { font-weight: 600; text-align: right; vertical-align: top; color: var(--color-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
-/* Task lists — checkbox aligned with first line, no bullet. */
+/* Task lists — no bullet; the checkbox sits inline at the start of the
+   item's first line. Plain block layout on purpose: a flex item puts an
+   item's paragraphs and nested lists side by side, which made a long task
+   list hundreds of pixels wider than a phone screen. */
 .markdown-body ul.contains-task-list { list-style: none; padding-left: 0.5rem; }
-.markdown-body li.task-list-item { display: flex; align-items: baseline; gap: 0.5rem; }
-.markdown-body li.task-list-item input[type="checkbox"] { transform: translateY(0.1rem); }
+.markdown-body li.task-list-item input[type="checkbox"] { margin-right: 0.5rem; transform: translateY(0.1rem); }
 
 /* Mermaid placeholder before the runtime takes over: hide the source so it
    doesn't flash as raw text in the brief window before mermaid loads. Once
-   mermaid runs, it sets data-processed="true" and renders the SVG inline. */
-.markdown-body pre.mermaid { background: transparent; border: 0; padding: 0; overflow: visible; min-height: 1.5rem; color: transparent; }
-.markdown-body pre.mermaid[data-processed="true"] { color: inherit; text-align: center; }
+   mermaid runs, it sets data-processed="true" and renders the SVG inline.
+   The placeholder is overflow: hidden because its long source lines would
+   otherwise widen the page until mermaid (a large download on a phone)
+   arrives; a rendered diagram too wide for the screen scrolls in its box. */
+.markdown-body pre.mermaid { background: transparent; border: 0; padding: 0; overflow: hidden; min-height: 1.5rem; color: transparent; }
+.markdown-body pre.mermaid[data-processed="true"] { color: inherit; text-align: center; overflow-x: auto; }
 
 /* YouTube embeds — unscoped so the editor preview renders them the same
    way. Aspect ratio keeps the iframe responsive without JS. */

@@ -202,9 +202,13 @@ watch(
       </details>
 
       <!-- Sidebar TOC on lg+. Grid keeps the article width stable whether TOC
-           is shown or not — when hidden, the article gets the full column. -->
+           is shown or not — when hidden, the article gets the full column.
+           The base minmax(0,1fr) column matters: without it the implicit
+           column grows to the widest content (a wide table or code block),
+           so on a phone the whole article becomes thousands of pixels wide
+           instead of the table scrolling inside it. -->
       <div
-        class="grid gap-8"
+        class="grid grid-cols-[minmax(0,1fr)] gap-8"
         :class="showToc ? 'lg:grid-cols-[minmax(0,1fr)_14rem]' : ''"
       >
         <MarkdownView :html="rendered.html" />
