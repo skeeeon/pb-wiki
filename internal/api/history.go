@@ -37,12 +37,12 @@ type historyUser struct {
 }
 
 type historyRevision struct {
-	ID        string         `json:"id"`
-	Timestamp string         `json:"timestamp"`
-	EventType string         `json:"event_type"`
-	User      *historyUser   `json:"user"`
-	Before    types.JSONRaw  `json:"before"`
-	After     types.JSONRaw  `json:"after"`
+	ID        string        `json:"id"`
+	Timestamp string        `json:"timestamp"`
+	EventType string        `json:"event_type"`
+	User      *historyUser  `json:"user"`
+	Before    types.JSONRaw `json:"before"`
+	After     types.JSONRaw `json:"after"`
 }
 
 type historyResponse struct {
@@ -58,7 +58,10 @@ func handleHistory(e *core.RequestEvent) error {
 	// homepage (path="") from matching itself. Same workaround as the
 	// importer's upsert (internal/importer/importer.go).
 	docs, err := e.App.FindAllRecords("documents", dbx.HashExp{"path": path})
-	if err != nil || len(docs) == 0 {
+	if err != nil {
+		return e.InternalServerError("Failed to load document.", err)
+	}
+	if len(docs) == 0 {
 		return e.NotFoundError("", nil)
 	}
 	doc := docs[0]
@@ -95,9 +98,12 @@ func handleHistory(e *core.RequestEvent) error {
 	}
 
 	// Expand the user relation in-place so we can render editor identity in
-	// the response without a round-trip per row.
+	// the response without a round-trip per row. A deleted user is simply
+	// left out, so an error here is a real database or schema failure.
 	if len(records) > 0 {
-		e.App.ExpandRecords(records, []string{"user"}, nil)
+		if failed := e.App.ExpandRecords(records, []string{"user"}, nil); len(failed) > 0 {
+			return e.InternalServerError("Failed to load history.", failed["user"])
+		}
 	}
 
 	revisions := make([]historyRevision, 0, len(records))

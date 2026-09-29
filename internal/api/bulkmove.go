@@ -99,7 +99,10 @@ func handleBulkMove(e *core.RequestEvent) error {
 	// path="" row; PB's filter parser would otherwise JSON-encode the
 	// empty string into a literal `""` and miss the match.
 	for _, item := range items {
-		matches, _ := e.App.FindAllRecords("documents", dbx.HashExp{"path": item.To})
+		matches, err := e.App.FindAllRecords("documents", dbx.HashExp{"path": item.To})
+		if err != nil {
+			return e.InternalServerError("Failed to check target paths.", err)
+		}
 		if len(matches) == 0 {
 			continue
 		}
