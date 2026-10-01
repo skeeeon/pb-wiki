@@ -43,7 +43,8 @@ const historyTo = computed(() => `/history/${path.value}`)
 
 const rendered = computed(() => renderDoc(doc.value?.body ?? ''))
 const tocHeadings = computed(() => rendered.value.headings.filter((h) => h.level >= 1 && h.level <= 4))
-const showToc = computed(() => rendered.value.showToc && tocHeadings.value.length > 0)
+// A one-entry contents list is just noise, so a page needs two headings.
+const showToc = computed(() => rendered.value.showToc && tocHeadings.value.length > 1)
 
 const activeSlug = useActiveHeading(() => tocHeadings.value)
 

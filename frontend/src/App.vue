@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, computed, ref, watch } from 'vue'
+import { onMounted, onBeforeUnmount, computed, nextTick, ref, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 
 import { useConfigStore } from '@/stores/config'
@@ -30,6 +30,28 @@ watch(
     scrolled.value = window.scrollY > 80
   },
 )
+
+// Desktop sidebar collapse. Remembered per browser; storage can throw in
+// private windows, in which case the sidebar just starts open.
+const COLLAPSED_KEY = 'pb-wiki:sidebar-collapsed'
+const collapsed = ref(false)
+try {
+  collapsed.value = localStorage.getItem(COLLAPSED_KEY) === '1'
+} catch {
+  /* storage unavailable */
+}
+const expandBtn = ref<HTMLButtonElement | null>(null)
+function setCollapsed(value: boolean) {
+  collapsed.value = value
+  try {
+    localStorage.setItem(COLLAPSED_KEY, value ? '1' : '0')
+  } catch {
+    /* storage unavailable */
+  }
+  // Keep keyboard focus on a visible control: the collapse button is gone
+  // once the sidebar slides away.
+  if (value) void nextTick(() => expandBtn.value?.focus())
+}
 
 // Escape closes the drawer; matches the usual modal/menu convention.
 function onKeydown(e: KeyboardEvent) {
@@ -102,6 +124,8 @@ onBeforeUnmount(() => {
           <line x1="3" y1="18" x2="21" y2="18" />
         </svg>
       </button>
+      <img src="/logo.svg" alt="" class="shrink-0 w-7 h-7 -ml-1 dark:hidden" />
+      <img src="/logo-dark.svg" alt="" class="shrink-0 w-7 h-7 -ml-1 hidden dark:block" />
       <!-- Title swap: site title at rest, current page title once scrolled
            past the heading. The two are stacked and cross-faded so the bar
            height stays put. -->
@@ -146,23 +170,46 @@ onBeforeUnmount(() => {
     />
 
     <!-- Sidebar — always fixed. Off-screen on mobile, drawer when opened;
-         always visible on md+. Fixed avoids the sticky-in-flex gotcha where
-         a stretched flex parent prevents sticky from engaging. -->
+         visible on md+ unless collapsed. Fixed avoids the sticky-in-flex
+         gotcha where a stretched flex parent prevents sticky from engaging.
+         `inert` keeps a collapsed sidebar's links out of the tab order. -->
     <aside
       class="fixed top-0 left-0 z-50 w-80 h-dvh flex flex-col
              border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900
              transition-transform duration-200 ease-out
-             -translate-x-full md:translate-x-0"
-      :class="{ 'translate-x-0': mobileOpen }"
+             -translate-x-full"
+      :class="{ 'translate-x-0': mobileOpen, 'md:translate-x-0': !collapsed }"
+      :inert="collapsed && !mobileOpen ? true : undefined"
     >
-      <Sidebar :open="mobileOpen" @close="mobileOpen = false" />
+      <Sidebar :open="mobileOpen" @close="mobileOpen = false" @collapse="setCollapsed(true)" />
     </aside>
+
+    <!-- Desktop only: brings a collapsed sidebar back. -->
+    <button
+      v-if="collapsed"
+      ref="expandBtn"
+      type="button"
+      class="hidden md:flex fixed top-4 left-4 z-30 p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800"
+      title="Show sidebar"
+      aria-label="Show sidebar"
+      @click="setCollapsed(false)"
+    >
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <path d="M9 3v18" />
+        <path d="m14 9 3 3-3 3" />
+      </svg>
+    </button>
 
     <!-- No overflow-x on <main>: setting it would make main a scroll
          container, which scopes descendant `position: sticky` (e.g. the
          TOC rail in DocView) to main instead of the viewport. Wide
-         elements (pre, table) handle their own horizontal overflow. -->
-    <main class="md:ml-80 p-6 pt-[calc(5rem+env(safe-area-inset-top))] md:pt-6">
+         elements (pre, table) handle their own horizontal overflow.
+         Collapsed, the left padding clears the show-sidebar button. -->
+    <main
+      class="p-6 pt-[calc(5rem+env(safe-area-inset-top))] md:pt-6 md:transition-[margin] md:duration-200 md:ease-out"
+      :class="collapsed ? 'md:pl-16' : 'md:ml-80'"
+    >
       <RouterView />
     </main>
   </div>

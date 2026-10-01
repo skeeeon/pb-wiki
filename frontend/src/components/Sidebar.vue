@@ -20,7 +20,7 @@ import {
 import { buildTree, type TreeNode } from './sidebarTree'
 import SidebarTreeItem from './SidebarTreeItem.vue'
 
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; collapse: [] }>()
 
 // `open` reflects the drawer state on mobile. When it flips to true the
 // sidebar focuses its close button and scrolls the active tree node into
@@ -140,11 +140,14 @@ function toggleExpand(path: string) {
          the notch when the drawer covers the whole screen. -->
     <div class="shrink-0 px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] space-y-3">
       <div class="flex items-center justify-between gap-2">
-        <RouterLink to="/" class="block" :aria-label="config.config?.title || 'pb-wiki'">
-          <img src="/logo.svg" :alt="config.config?.title || 'pb-wiki'" class="h-12 block dark:hidden" />
-          <img src="/logo-dark.svg" :alt="config.config?.title || 'pb-wiki'" class="h-12 hidden dark:block" />
+        <RouterLink to="/" class="flex items-center gap-2.5 min-w-0 rounded hover:opacity-80">
+          <img src="/logo.svg" alt="" class="shrink-0 w-8 h-8 dark:hidden" />
+          <img src="/logo-dark.svg" alt="" class="shrink-0 w-8 h-8 hidden dark:block" />
+          <span class="text-base font-semibold leading-tight truncate">
+            {{ config.config?.title || 'pb-wiki' }}
+          </span>
         </RouterLink>
-        <div class="flex items-center gap-1">
+        <div class="flex items-center gap-1 shrink-0">
           <!-- Theme toggle is duplicated in the mobile top bar, so hide it
                here on mobile to avoid two toggles in the same viewport. -->
           <button
@@ -162,6 +165,20 @@ function toggleExpand(path: string) {
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
             </svg>
           </button>
+          <!-- Collapse — desktop only; App.vue shows the button that brings it back. -->
+          <button
+            type="button"
+            class="hidden md:block shrink-0 p-1.5 rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+            title="Hide sidebar"
+            aria-label="Hide sidebar"
+            @click="emit('collapse')"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M9 3v18" />
+              <path d="m16 15-3-3 3-3" />
+            </svg>
+          </button>
           <!-- Close button — only on mobile, when the sidebar is acting as a drawer. -->
           <button
             ref="closeBtn"
@@ -177,9 +194,6 @@ function toggleExpand(path: string) {
           </button>
         </div>
       </div>
-      <h1 v-if="config.config?.title" class="text-base font-semibold leading-tight">
-        {{ config.config.title }}
-      </h1>
 
       <div class="relative">
         <svg

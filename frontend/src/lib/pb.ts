@@ -6,9 +6,7 @@ import PocketBase from 'pocketbase'
 //
 // VITE_PB_URL is an escape hatch for environments where the SPA is hosted
 // separately from the API (we don't ship that way, but the override is cheap).
-const url =
-  import.meta.env.VITE_PB_URL ??
-  (import.meta.env.DEV ? 'http://127.0.0.1:5173' : window.location.origin)
+const url = import.meta.env.VITE_PB_URL ?? window.location.origin
 
 export const pb = new PocketBase(url)
 
