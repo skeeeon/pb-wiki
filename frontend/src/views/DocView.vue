@@ -1,16 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import {
-  PopoverRoot,
-  PopoverTrigger,
-  PopoverPortal,
-  PopoverContent,
-} from 'reka-ui'
 
 import { useDoc } from '@/composables/useDoc'
 import { useDocumentTitle } from '@/composables/useDocumentTitle'
 import { useActiveHeading } from '@/composables/useActiveHeading'
+import { publishPageToc } from '@/composables/usePageToc'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
 import { renderDoc } from '@/lib/markdown'
@@ -70,12 +65,11 @@ function relativeTime(iso: string): string {
   return fmt.format(Math.round(diffSec / 31536000), 'year')
 }
 
-// Floating TOC button — visible only when the inline mobile TOC has scrolled
-// out of viewport, so users keep an affordance to jump headings on long pages.
-// Desktop (lg+) uses the sticky aside and doesn't need this.
+// Once the inline mobile TOC scrolls out of view, the phone top bar (App.vue)
+// offers the contents instead, so long pages keep a way to jump headings.
+// Desktop (lg+) uses the sticky aside.
 const inlineTocEl = ref<HTMLElement | null>(null)
 const inlineTocVisible = ref(true)
-const fabOpen = ref(false)
 let observer: IntersectionObserver | null = null
 
 watch(inlineTocEl, (el) => {
@@ -93,10 +87,16 @@ watch(inlineTocEl, (el) => {
 
 onBeforeUnmount(() => observer?.disconnect())
 
-function onPopoverClick(ev: MouseEvent) {
-  const target = ev.target as HTMLElement | null
-  if (target?.closest('a')) fabOpen.value = false
-}
+publishPageToc(() =>
+  showToc.value && doc.value
+    ? {
+        headings: rendered.value.headings,
+        activeSlug: activeSlug.value,
+        pageTitle: doc.value.title || 'Untitled',
+        inlineVisible: inlineTocVisible.value,
+      }
+    : null,
+)
 
 // Browser hash-scroll fires before the async doc fetch lands, so the native
 // scroll happens against an empty article. Re-trigger it once the rendered
@@ -226,43 +226,6 @@ watch(
           </div>
         </aside>
       </div>
-
-      <!-- Floating TOC button — appears below lg once the inline TOC has
-           scrolled out of viewport, keeping the heading list reachable on
-           long pages without bringing the full sidebar back. -->
-      <PopoverRoot v-if="showToc && !inlineTocVisible" v-model:open="fabOpen">
-        <PopoverTrigger
-          as="button"
-          type="button"
-          aria-label="On this page"
-          class="lg:hidden fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40 w-12 h-12 rounded-full bg-white/90 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200 dark:border-slate-700 text-primary shadow-lg shadow-primary/10 dark:shadow-black/40 flex items-center justify-center hover:border-primary/40/40 hover:bg-white dark:hover:bg-slate-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="8" y1="6" x2="21" y2="6" />
-            <line x1="8" y1="12" x2="21" y2="12" />
-            <line x1="8" y1="18" x2="21" y2="18" />
-            <line x1="3" y1="6" x2="3.01" y2="6" />
-            <line x1="3" y1="12" x2="3.01" y2="12" />
-            <line x1="3" y1="18" x2="3.01" y2="18" />
-          </svg>
-        </PopoverTrigger>
-        <PopoverPortal>
-          <PopoverContent
-            side="top"
-            align="end"
-            :side-offset="8"
-            :collision-padding="16"
-            class="lg:hidden z-50 w-[min(20rem,calc(100vw-2rem))] max-h-[60vh] overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-lg focus:outline-none"
-            @click="onPopoverClick"
-          >
-            <TocSidebar
-              :headings="rendered.headings"
-              :active-slug="activeSlug"
-              :page-title="doc?.title"
-            />
-          </PopoverContent>
-        </PopoverPortal>
-      </PopoverRoot>
     </article>
   </div>
 </template>

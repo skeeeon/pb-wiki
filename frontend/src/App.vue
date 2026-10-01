@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, computed, nextTick, ref, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
+import { PopoverRoot, PopoverTrigger, PopoverPortal, PopoverContent } from 'reka-ui'
 
 import { useConfigStore } from '@/stores/config'
 import { useDocsStore } from '@/stores/docs'
 import { useDocumentTitle } from '@/composables/useDocumentTitle'
+import { usePageToc } from '@/composables/usePageToc'
 import { useTheme } from '@/composables/useTheme'
 import Sidebar from '@/components/Sidebar.vue'
+import TocSidebar from '@/components/TocSidebar.vue'
 
 const config = useConfigStore()
 const docsStore = useDocsStore()
@@ -25,6 +28,7 @@ watch(
   () => route.fullPath,
   () => {
     mobileOpen.value = false
+    tocOpen.value = false
     // After navigation a scroll event won't necessarily fire (e.g. landing
     // at y=0 on the new page), so re-evaluate the scrolled flag explicitly.
     scrolled.value = window.scrollY > 80
@@ -88,6 +92,24 @@ function onScroll() {
   scrolled.value = window.scrollY > 80
 }
 
+// Once a page's inline "On this page" box scrolls away, the bar's title
+// becomes a button naming the current section; it opens the contents.
+const pageToc = usePageToc()
+const tocOpen = ref(false)
+const showTocButton = computed(() => !!pageToc.value && !pageToc.value.inlineVisible)
+const currentSection = computed(() => {
+  const t = pageToc.value
+  return t?.headings.find((h) => h.slug === t.activeSlug)?.text ?? null
+})
+watch(showTocButton, (show) => {
+  if (!show) tocOpen.value = false
+})
+
+// Picking a heading scrolls to it (TocSidebar), so close the list.
+function onTocClick(ev: MouseEvent) {
+  if ((ev.target as HTMLElement | null)?.closest('a')) tocOpen.value = false
+}
+
 onMounted(() => {
   config.load()
   window.addEventListener('keydown', onKeydown)
@@ -127,23 +149,63 @@ onBeforeUnmount(() => {
       <img src="/logo.svg" alt="" class="shrink-0 w-7 h-7 -ml-1 dark:hidden" />
       <img src="/logo-dark.svg" alt="" class="shrink-0 w-7 h-7 -ml-1 hidden dark:block" />
       <!-- Title swap: site title at rest, current page title once scrolled
-           past the heading. The two are stacked and cross-faded so the bar
-           height stays put. -->
-      <div class="relative flex-1 min-w-0 h-6">
+           past the heading, and on pages with contents a button naming the
+           current section once the inline "On this page" box is gone. They
+           are stacked and cross-faded so the bar height stays put. -->
+      <div class="relative flex-1 min-w-0 h-10">
         <span
-          class="absolute inset-0 text-base font-semibold truncate transition-opacity duration-150"
-          :class="scrolled && currentDocTitle ? 'opacity-0' : 'opacity-100'"
-          :aria-hidden="scrolled && !!currentDocTitle"
+          class="absolute inset-0 text-base font-semibold leading-10 truncate transition-opacity duration-150"
+          :class="(scrolled && currentDocTitle) || showTocButton ? 'opacity-0' : 'opacity-100'"
+          :aria-hidden="(scrolled && !!currentDocTitle) || showTocButton"
         >
           {{ config.config?.title || 'pb-wiki' }}
         </span>
         <span
-          class="absolute inset-0 text-base font-semibold truncate transition-opacity duration-150"
-          :class="scrolled && currentDocTitle ? 'opacity-100' : 'opacity-0'"
-          :aria-hidden="!(scrolled && currentDocTitle)"
+          class="absolute inset-0 text-base font-semibold leading-10 truncate transition-opacity duration-150"
+          :class="scrolled && currentDocTitle && !showTocButton ? 'opacity-100' : 'opacity-0'"
+          :aria-hidden="!(scrolled && currentDocTitle) || showTocButton"
         >
           {{ currentDocTitle }}
         </span>
+        <!-- `invisible` (not just transparent) keeps the hidden button out
+             of the tab order and the accessibility tree. -->
+        <PopoverRoot v-if="pageToc" v-model:open="tocOpen">
+          <PopoverTrigger
+            as="button"
+            type="button"
+            class="absolute inset-0 flex flex-col justify-center min-w-0 px-2 -mx-2 rounded text-left transition-[opacity,visibility] duration-150 hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            :class="showTocButton ? 'opacity-100' : 'opacity-0 invisible'"
+            :aria-label="currentSection ? `On this page: ${currentSection}` : 'On this page'"
+          >
+            <span class="block text-xs leading-4 text-slate-500 truncate">{{ pageToc.pageTitle }}</span>
+            <span class="flex items-center gap-1 min-w-0 text-sm leading-5 font-semibold">
+              <span class="truncate">{{ currentSection ?? 'On this page' }}</span>
+              <svg
+                class="w-4 h-4 shrink-0 text-slate-400 transition-transform duration-150"
+                :class="{ 'rotate-180': tocOpen }"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </span>
+          </PopoverTrigger>
+          <PopoverPortal>
+            <PopoverContent
+              side="bottom"
+              align="start"
+              :side-offset="10"
+              :collision-padding="12"
+              class="md:hidden z-50 w-[min(24rem,calc(100vw-1.5rem))] max-h-[min(60vh,32rem)] overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-lg focus:outline-none"
+              @click="onTocClick"
+            >
+              <TocSidebar
+                :headings="pageToc.headings"
+                :active-slug="pageToc.activeSlug"
+                :page-title="pageToc.pageTitle"
+              />
+            </PopoverContent>
+          </PopoverPortal>
+        </PopoverRoot>
       </div>
       <button
         type="button"
