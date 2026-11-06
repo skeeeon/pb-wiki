@@ -45,6 +45,45 @@ export const useAuthStore = defineStore('auth', () => {
     pb.authStore.clear()
   }
 
+  // The session in localStorage is only the client's copy. The server can
+  // stop honouring it while the client still holds it: the token expires, the
+  // password changes, the user is deleted, or a fresh database is deployed.
+  // PocketBase then treats each request as a guest instead of answering 401,
+  // so the UI still shows editor controls while every write fails the
+  // collection rule and comes back as 404. The cached role and groups can
+  // also be out of date after an admin changes them.
+  //
+  // verifySession asks the server. A rejected token clears the session, so
+  // the UI shows the user as signed out. A good token refreshes the token and
+  // the record. Network errors keep the session, so being offline does not
+  // sign the user out.
+  let lastVerified = 0
+  async function verifySession() {
+    if (!pb.authStore.token) return
+    if (!pb.authStore.isValid) {
+      pb.authStore.clear()
+      return
+    }
+    try {
+      await pb.collection('users').authRefresh<UserRecord>({ requestKey: 'auth-verify' })
+      lastVerified = Date.now()
+    } catch (err: unknown) {
+      const status = (err as { status?: number })?.status ?? 0
+      if (status === 401 || status === 403 || status === 404) {
+        pb.authStore.clear()
+      }
+    }
+  }
+
+  // Check again when the tab comes back after a while: a tab left open for
+  // days is the usual way to be holding a session the server has dropped.
+  const REVERIFY_AFTER_MS = 5 * 60 * 1000
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && Date.now() - lastVerified > REVERIFY_AFTER_MS) {
+      void verifySession()
+    }
+  })
+
   return {
     token,
     record,
@@ -57,5 +96,6 @@ export const useAuthStore = defineStore('auth', () => {
     loginWithOAuth,
     register,
     logout,
+    verifySession,
   }
 })

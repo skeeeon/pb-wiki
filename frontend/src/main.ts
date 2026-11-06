@@ -5,6 +5,7 @@ import { config as mdEditorConfig } from 'md-editor-v3'
 import './style.css'
 import App from './App.vue'
 import router from './router'
+import { useAuthStore } from './stores/auth'
 import { useConfigStore } from './stores/config'
 import {
   applyCalloutContainers,
@@ -72,6 +73,11 @@ if (config.loadFromStorage()) {
 } else {
   await config.load()
 }
+
+// Check the stored session with the server instead of trusting localStorage
+// (see verifySession). This does not block the first render. If the server
+// rejects the token, the store clears and the UI changes to signed out.
+void useAuthStore().verifySession()
 
 app.use(router)
 app.mount('#app')
