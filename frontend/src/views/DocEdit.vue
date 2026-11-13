@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch, toRef } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref, watch, toRef, onMounted, onUnmounted } from 'vue'
+import { useRouter, onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import {
@@ -45,6 +45,7 @@ const newPath = ref(path.value)
 const saving = ref(false)
 const deleting = ref(false)
 const errorMsg = ref('')
+const savedState = ref('')
 
 // Cancel target — edit mode goes back to the saved doc, new mode pops up
 // to the parent path (or home if it was already top-level).
@@ -74,9 +75,32 @@ watch(
       groupsText.value = ''
       navOrder.value = 0
     }
+    savedState.value = formState()
   },
   { immediate: true },
 )
+
+// Unsaved edits: the form differs from what was loaded (or from blank, for a
+// new page). Line endings are ignored: the editor turns \r\n into \n, which
+// would make a page imported with Windows line endings look edited.
+function formState() {
+  const text = body.value.replace(/\r\n/g, '\n')
+  return JSON.stringify([newPath.value, title.value, text, access.value, groupsText.value, navOrder.value])
+}
+const dirty = computed(() => formState() !== savedState.value)
+
+function confirmLeave() {
+  if (dirty.value && !window.confirm('Leave without saving? Your changes will be lost.')) return false
+}
+onBeforeRouteLeave(confirmLeave)
+onBeforeRouteUpdate(confirmLeave)
+
+// Closing or reloading the tab. Browsers show their own message.
+function onBeforeUnload(e: BeforeUnloadEvent) {
+  if (dirty.value) e.preventDefault()
+}
+onMounted(() => window.addEventListener('beforeunload', onBeforeUnload))
+onUnmounted(() => window.removeEventListener('beforeunload', onBeforeUnload))
 
 // md-editor-v3 calls this with the dropped/pasted files and expects either a
 // promise-resolved string[] or invocation of callBack(string[]) with absolute
@@ -100,6 +124,11 @@ async function onUploadImg(files: File[], callBack: (urls: string[]) => void) {
 
 async function save() {
   if (saving.value) return
+  // Nothing changed: a save would only add an empty revision to the history.
+  if (props.mode === 'edit' && !dirty.value) {
+    router.push(cancelTo.value)
+    return
+  }
   saving.value = true
   errorMsg.value = ''
   try {
@@ -120,6 +149,7 @@ async function save() {
       await pb.collection('documents').create(data)
     }
     await docsStore.reload()
+    savedState.value = formState()
     router.push(`/doc/${data.path}`)
   } catch (err) {
     errorMsg.value = err instanceof Error ? err.message : String(err)
@@ -134,6 +164,7 @@ async function deleteDoc() {
   try {
     await pb.collection('documents').delete(doc.value.id)
     await docsStore.reload()
+    savedState.value = formState() // the page is gone; nothing to warn about
     router.push('/')
   } catch (err) {
     errorMsg.value = err instanceof Error ? err.message : String(err)

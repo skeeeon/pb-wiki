@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pocketbase/dbx"
+	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tests"
 
 	"github.com/skeeeon/pb-wiki/internal/hooks"
@@ -145,12 +146,37 @@ func TestRunSkipsUnchangedPages(t *testing.T) {
 		t.Errorf("unchanged ops page was saved again: %q, was %q", got, ops)
 	}
 
+	// Someone last saved ops in the wiki; an import that changes it must
+	// clear updated_by, so the page doesn't say they made the import's edit.
+	users, err := app.FindCollectionByNameOrId("users")
+	if err != nil {
+		t.Fatal(err)
+	}
+	alice := core.NewRecord(users)
+	alice.SetEmail("alice@example.test")
+	alice.SetPassword("password123456")
+	if err := app.Save(alice); err != nil {
+		t.Fatal(err)
+	}
+	opsRec, err := app.FindFirstRecordByData("documents", "path", "ops")
+	if err != nil {
+		t.Fatal(err)
+	}
+	opsRec.Set("updated_by", alice.Id)
+	if err := app.Save(opsRec); err != nil {
+		t.Fatal(err)
+	}
+	ops = updated("ops")
+
 	write("ops.md", "---\npath: ops\naccess: restricted\ngroups: [ops]\nnav_order: 5\n---\n# Ops\n\nNew runbooks.\n")
 	if err := run(app, src); err != nil {
 		t.Fatal(err)
 	}
 	if got := updated("ops"); got == ops {
 		t.Errorf("changed ops page was not saved: %q", got)
+	}
+	if opsRec, _ = app.FindFirstRecordByData("documents", "path", "ops"); opsRec.GetString("updated_by") != "" {
+		t.Errorf("import left updated_by = %q, want empty", opsRec.GetString("updated_by"))
 	}
 	if got := updated(""); got != home {
 		t.Errorf("unchanged homepage was saved again: %q, was %q", got, home)

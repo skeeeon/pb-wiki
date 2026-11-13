@@ -26,18 +26,11 @@ func RegisterHistory(app core.App) {
 	})
 }
 
-// notTimestampOnly leaves out updates that changed nothing but the `updated`
-// timestamp, such as a save with no edits. It compares the two snapshots with
-// `updated` removed, so it also works for rows written before pb-audit
-// recorded changed_fields. Both snapshots are JSON from Go maps, whose keys
-// are always in the same order, so equal records give equal text. A row
-// without two valid snapshots is kept. CASE, not AND: SQLite may evaluate
-// every operand of an AND, and json_remove fails on invalid JSON.
-const notTimestampOnly = `CASE
-	WHEN event_type = 'update' AND json_valid(before_changes) AND json_valid(after_changes)
-	THEN json_remove(before_changes, '$.updated') = json_remove(after_changes, '$.updated')
-	ELSE 0
-END = 0`
+// notTimestampOnly leaves out saves that changed nothing but the `updated`
+// timestamp. pb-audit writes changed_fields exactly as `["updated"]` for
+// those. Rows from before pb-audit v0.2 have no changed_fields (NULL), and
+// IS NOT keeps them.
+const notTimestampOnly = `changed_fields IS NOT '["updated"]'`
 
 // defaultHistoryLimit caps a single page. Frontend can paginate with ?before.
 const defaultHistoryLimit = 50

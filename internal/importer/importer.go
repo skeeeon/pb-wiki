@@ -320,6 +320,9 @@ func upsert(app core.App, coll *core.Collection, pg page) (result, error) {
 		// the page history) that changes nothing.
 		return resultUnchanged, nil
 	}
+	// The import is now the last edit, so the page must not keep showing
+	// "Edited by" whoever last saved it in the wiki.
+	rec.Set("updated_by", "")
 	return resultUpdated, app.Save(rec)
 }
 
