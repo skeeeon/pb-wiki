@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, toRef, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 
+import { pb } from '@/lib/pb'
+import { useAuthStore } from '@/stores/auth'
+import { useDocsStore } from '@/stores/docs'
 import { useDoc } from '@/composables/useDoc'
 import { useDocHistory, type Revision } from '@/composables/useDocHistory'
 import { useDocumentTitle } from '@/composables/useDocumentTitle'
@@ -82,9 +85,9 @@ function relativeTime(iso: string): string {
 
 function editorOf(r: Revision): string {
   if (r.user) return r.user.name || r.user.email
-  // pb-audit stores null user for admin/superuser edits since admins aren't
-  // in the users collection. Make that visible rather than blank.
-  return 'admin'
+  // No `updated_by` on that revision: an import, an edit by a superuser
+  // (not in the users collection), or a user since deleted.
+  return 'import or admin'
 }
 
 // Hand-rolled LCS line diff. Wiki bodies are short enough that O(n*m) is
@@ -174,6 +177,48 @@ const previewDiff = computed<DiffLine[]>(() => {
   return []
 })
 const previewRaw = computed(() => (selected.value ? bodyOf(selected.value.after) : ''))
+
+// Restore: write the selected revision's title and body back to the page.
+// Path, access and groups stay as they are now — restoring old access could
+// quietly reopen a page that was since restricted. The restore is a normal
+// save, so it shows up as the newest revision and can itself be undone.
+const router = useRouter()
+const auth = useAuthStore()
+const docsStore = useDocsStore()
+const restoring = ref(false)
+const restoreError = ref('')
+
+// Only offered when the snapshot holds a body (older revisions might not) and
+// differs from the live page, so a restore never blanks a page or saves
+// nothing.
+const canRestore = computed(() => {
+  const r = selected.value
+  const d = currentDoc.value
+  if (!auth.isEditor || !r || !d || typeof r.after?.body !== 'string') return false
+  return bodyOf(r.after) !== d.body || titleOf(r.after) !== d.title
+})
+
+async function restore() {
+  const r = selected.value
+  const d = currentDoc.value
+  if (!r || !d || restoring.value) return
+  if (!window.confirm(`Restore the version from ${formatTime(r.timestamp)}? This replaces the current title and text.`)) return
+  restoring.value = true
+  restoreError.value = ''
+  try {
+    await pb.collection('documents').update(d.id, {
+      title: titleOf(r.after) || d.title,
+      body: bodyOf(r.after),
+      updated_by: auth.record?.id,
+    })
+    await docsStore.reload() // the title shows in the sidebar
+    router.push(docTo.value)
+  } catch (err) {
+    restoreError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    restoring.value = false
+  }
+}
 
 // On small screens, focusing a revision should scroll the preview into view —
 // without it, tapping a row gives no visible feedback. Triggered on mode +
@@ -356,11 +401,25 @@ watch([selectedId, mode], () => {
         </div>
 
         <div v-if="selected" class="space-y-2">
-          <div class="text-xs text-slate-500">
-            <time :title="formatTime(selected.timestamp)">{{ relativeTime(selected.timestamp) }}</time>
-            · by {{ editorOf(selected) }}
-            · <code>{{ selected.event_type }}</code>
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <div class="text-xs text-slate-500">
+              <time :title="formatTime(selected.timestamp)">{{ relativeTime(selected.timestamp) }}</time>
+              · by {{ editorOf(selected) }}
+              · <code>{{ selected.event_type }}</code>
+            </div>
+            <button
+              v-if="canRestore"
+              type="button"
+              :disabled="restoring"
+              class="rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 px-2.5 py-1 text-xs font-medium disabled:opacity-60"
+              @click="restore"
+            >
+              {{ restoring ? 'Restoring…' : 'Restore this version' }}
+            </button>
           </div>
+          <p v-if="restoreError" class="text-xs text-red-600 dark:text-red-400">
+            Restore failed: {{ restoreError }}
+          </p>
 
           <div
             v-if="mode === 'rendered'"

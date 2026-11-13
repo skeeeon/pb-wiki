@@ -36,3 +36,24 @@ func TestJSONRawFallsBackToNullOnUnknownTypes(t *testing.T) {
 		t.Errorf("missing field: got %q, want \"null\"", string(got))
 	}
 }
+
+func TestUpdatedBy(t *testing.T) {
+	cases := []struct {
+		name     string
+		snapshot types.JSONRaw
+		want     string
+	}{
+		{"web edit", types.JSONRaw(`{"body":"x","updated_by":"u123"}`), "u123"},
+		{"import clears it", types.JSONRaw(`{"body":"x","updated_by":""}`), ""},
+		{"old snapshot without the field", types.JSONRaw(`{"body":"x"}`), ""},
+		{"no snapshot", types.JSONRaw(`null`), ""},
+		{"empty", types.JSONRaw(``), ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := updatedBy(tc.snapshot); got != tc.want {
+				t.Errorf("updatedBy(%s) = %q, want %q", tc.snapshot, got, tc.want)
+			}
+		})
+	}
+}

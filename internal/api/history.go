@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -106,16 +107,12 @@ func handleHistory(e *core.RequestEvent) error {
 		return e.InternalServerError("Failed to load history.", err)
 	}
 
-	// Expand the user relation in-place so we can render editor identity in
-	// the response without a round-trip per row. A deleted user is simply
-	// left out, so an error here is a real database or schema failure.
-	if len(records) > 0 {
-		if failed := e.App.ExpandRecords(records, []string{"user"}, nil); len(failed) > 0 {
-			return e.InternalServerError("Failed to load history.", failed["user"])
-		}
-	}
-
+	// The editor of each revision is the page's `updated_by` in that
+	// revision's snapshot. audit_logs.user can't be used: pb-audit fills it
+	// only for request events, and these create/update events are written
+	// after the save, with no request attached.
 	revisions := make([]historyRevision, 0, len(records))
+	var userIDs []string
 	for _, r := range records {
 		rev := historyRevision{
 			ID:        r.Id,
@@ -124,17 +121,47 @@ func handleHistory(e *core.RequestEvent) error {
 			Before:    jsonRaw(r, "before_changes"),
 			After:     jsonRaw(r, "after_changes"),
 		}
-		if u := r.ExpandedOne("user"); u != nil {
-			rev.User = &historyUser{
+		if id := updatedBy(rev.After); id != "" {
+			userIDs = append(userIDs, id)
+		}
+		revisions = append(revisions, rev)
+	}
+
+	// One query for all editors. A deleted user is simply not found, and
+	// that revision shows no editor.
+	users := map[string]*core.Record{}
+	if len(userIDs) > 0 {
+		found, err := e.App.FindRecordsByIds("users", userIDs)
+		if err != nil {
+			return e.InternalServerError("Failed to load history.", err)
+		}
+		for _, u := range found {
+			users[u.Id] = u
+		}
+	}
+	for i := range revisions {
+		if u := users[updatedBy(revisions[i].After)]; u != nil {
+			revisions[i].User = &historyUser{
 				ID:    u.Id,
 				Email: u.GetString("email"),
 				Name:  u.GetString("name"),
 			}
 		}
-		revisions = append(revisions, rev)
 	}
 
 	return e.JSON(http.StatusOK, historyResponse{Revisions: revisions})
+}
+
+// updatedBy returns the `updated_by` user id from a documents snapshot, or ""
+// when there is none (an import, a superuser edit, or a missing snapshot).
+func updatedBy(snapshot types.JSONRaw) string {
+	var s struct {
+		UpdatedBy string `json:"updated_by"`
+	}
+	if json.Unmarshal(snapshot, &s) != nil {
+		return ""
+	}
+	return s.UpdatedBy
 }
 
 // jsonRaw safely extracts a JSON field as types.JSONRaw. If the field is
