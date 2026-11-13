@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/tests"
@@ -98,5 +99,60 @@ func TestRunImportsTree(t *testing.T) {
 	}
 	if n, _ := app.CountRecords("documents"); n != 3 {
 		t.Errorf("documents after re-import: %d, want 3", n)
+	}
+}
+
+// A repeat import must not save pages whose content is unchanged: every save
+// bumps `updated` and adds a revision to the page history.
+func TestRunSkipsUnchangedPages(t *testing.T) {
+	app, err := tests.NewTestApp(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Cleanup()
+	hooks.Register(app)
+
+	src := t.TempDir()
+	write := func(name, content string) {
+		if err := os.WriteFile(filepath.Join(src, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("home.md", "---\npath: \"\"\n---\n# Home\n\nSee [ops](ops.md).\n")
+	write("ops.md", "---\npath: ops\naccess: restricted\ngroups: [ops]\nnav_order: 5\n---\n# Ops\n\nRunbooks.\n")
+
+	if err := run(app, src); err != nil {
+		t.Fatal(err)
+	}
+	updated := func(path string) string {
+		t.Helper()
+		recs, err := app.FindAllRecords("documents", dbx.HashExp{"path": path})
+		if err != nil || len(recs) != 1 {
+			t.Fatalf("find %q: %v (%d records)", path, err, len(recs))
+		}
+		return recs[0].GetString("updated") + " " + recs[0].GetString("body")
+	}
+	home, ops := updated(""), updated("ops")
+
+	time.Sleep(5 * time.Millisecond) // a save now would get a later `updated`
+	if err := run(app, src); err != nil {
+		t.Fatal(err)
+	}
+	if got := updated(""); got != home {
+		t.Errorf("unchanged homepage was saved again: %q, was %q", got, home)
+	}
+	if got := updated("ops"); got != ops {
+		t.Errorf("unchanged ops page was saved again: %q, was %q", got, ops)
+	}
+
+	write("ops.md", "---\npath: ops\naccess: restricted\ngroups: [ops]\nnav_order: 5\n---\n# Ops\n\nNew runbooks.\n")
+	if err := run(app, src); err != nil {
+		t.Fatal(err)
+	}
+	if got := updated("ops"); got == ops {
+		t.Errorf("changed ops page was not saved: %q", got)
+	}
+	if got := updated(""); got != home {
+		t.Errorf("unchanged homepage was saved again: %q, was %q", got, home)
 	}
 }

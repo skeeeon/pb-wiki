@@ -27,12 +27,15 @@
 // (logged, not fatal) so a partial input tree doesn't abort the whole run.
 //
 // The command is idempotent: records are matched by `path`, so re-running
-// updates rather than duplicates.
+// updates rather than duplicates. A page whose content matches what is already
+// stored is not saved at all, so repeat imports add no empty revisions to the
+// page history.
 package importer
 
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -157,7 +160,7 @@ func run(app core.App, root string) error {
 	// new page without `access` can inherit from a parent created in this run.
 	sort.Slice(pages, func(i, j int) bool { return *pages[i].fm.Path < *pages[j].fm.Path })
 
-	var created, updated int
+	var created, updated, unchanged int
 	for _, pg := range pages {
 		body, missing := rewriteLinks(pg.body, filepath.Dir(pg.file), pathOf)
 		for _, target := range missing {
@@ -165,19 +168,22 @@ func run(app core.App, root string) error {
 		}
 		pg.body = body
 
-		isUpdate, err := upsert(app, docs, pg)
+		res, err := upsert(app, docs, pg)
 		if err != nil {
 			return fmt.Errorf("upsert %q (from %s): %w", *pg.fm.Path, pg.file, err)
 		}
-		report(*pg.fm.Path, isUpdate)
-		if isUpdate {
-			updated++
-		} else {
+		report(*pg.fm.Path, res)
+		switch res {
+		case resultCreated:
 			created++
+		case resultUpdated:
+			updated++
+		case resultUnchanged:
+			unchanged++
 		}
 	}
 
-	fmt.Printf("\nDone. %d created, %d updated, %d skipped.\n", created, updated, skipped)
+	fmt.Printf("\nDone. %d created, %d updated, %d unchanged, %d skipped.\n", created, updated, unchanged, skipped)
 	return nil
 }
 
@@ -260,7 +266,20 @@ func parseFrontmatter(b []byte) (frontmatter, []byte, error) {
 	return fm, nil, errors.New("frontmatter opened but not closed")
 }
 
-func upsert(app core.App, coll *core.Collection, pg page) (bool, error) {
+// result says what upsert did with a page.
+type result string
+
+const (
+	resultCreated   result = "create"
+	resultUpdated   result = "update"
+	resultUnchanged result = "same  "
+)
+
+// importedFields are the document fields the importer writes. A page whose
+// values for these all match the stored record is not saved.
+var importedFields = []string{"path", "title", "body", "access", "groups", "nav_order"}
+
+func upsert(app core.App, coll *core.Collection, pg page) (result, error) {
 	// dbx.HashExp goes directly to parameterized SQL — we deliberately avoid
 	// FindFirstRecordByFilter here because PB's filter parser JSON-encodes
 	// empty-string params into a literal `""` value (filter.go:71-77 in
@@ -268,7 +287,7 @@ func upsert(app core.App, coll *core.Collection, pg page) (bool, error) {
 	// matching itself on a re-import.
 	existing, err := app.FindAllRecords("documents", dbx.HashExp{"path": *pg.fm.Path})
 	if err != nil {
-		return false, err
+		return "", err
 	}
 	isUpdate := len(existing) > 0
 	rec := core.NewRecord(coll)
@@ -281,7 +300,7 @@ func upsert(app core.App, coll *core.Collection, pg page) (bool, error) {
 	if pg.fm.Access != "" {
 		ids, err := groupIDs(app, pg.fm.Groups)
 		if err != nil {
-			return false, err
+			return "", err
 		}
 		rec.Set("access", pg.fm.Access)
 		rec.Set("groups", ids)
@@ -289,7 +308,41 @@ func upsert(app core.App, coll *core.Collection, pg page) (bool, error) {
 	if pg.fm.NavOrder != nil {
 		rec.Set("nav_order", *pg.fm.NavOrder)
 	}
-	return isUpdate, app.Save(rec)
+	if !isUpdate {
+		return resultCreated, app.Save(rec)
+	}
+	same, err := unchanged(rec)
+	if err != nil {
+		return "", err
+	}
+	if same {
+		// A save would bump `updated` and add an audit row (a revision in
+		// the page history) that changes nothing.
+		return resultUnchanged, nil
+	}
+	return resultUpdated, app.Save(rec)
+}
+
+// unchanged reports whether rec's imported fields still hold the values it
+// was loaded with. Values are compared as JSON: Set converts them to the
+// field's own type, but two values that store the same can still be
+// different Go values.
+func unchanged(rec *core.Record) (bool, error) {
+	orig := rec.Original()
+	for _, name := range importedFields {
+		a, err := json.Marshal(orig.Get(name))
+		if err != nil {
+			return false, err
+		}
+		b, err := json.Marshal(rec.Get(name))
+		if err != nil {
+			return false, err
+		}
+		if !bytes.Equal(a, b) {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // groupIDs returns the ids of the named groups, creating any that don't
@@ -335,14 +388,10 @@ func splitTitle(md string) (string, string) {
 	return title, rest
 }
 
-func report(slug string, isUpdate bool) {
-	verb := "create"
-	if isUpdate {
-		verb = "update"
-	}
+func report(slug string, res result) {
 	display := slug
 	if display == "" {
 		display = "(home)"
 	}
-	fmt.Printf("  %s  %s\n", verb, display)
+	fmt.Printf("  %s  %s\n", res, display)
 }

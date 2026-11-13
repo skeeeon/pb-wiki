@@ -26,6 +26,19 @@ func RegisterHistory(app core.App) {
 	})
 }
 
+// notTimestampOnly leaves out updates that changed nothing but the `updated`
+// timestamp, such as a save with no edits. It compares the two snapshots with
+// `updated` removed, so it also works for rows written before pb-audit
+// recorded changed_fields. Both snapshots are JSON from Go maps, whose keys
+// are always in the same order, so equal records give equal text. A row
+// without two valid snapshots is kept. CASE, not AND: SQLite may evaluate
+// every operand of an AND, and json_remove fails on invalid JSON.
+const notTimestampOnly = `CASE
+	WHEN event_type = 'update' AND json_valid(before_changes) AND json_valid(after_changes)
+	THEN json_remove(before_changes, '$.updated') = json_remove(after_changes, '$.updated')
+	ELSE 0
+END = 0`
+
 // defaultHistoryLimit caps a single page. Frontend can paginate with ?before.
 const defaultHistoryLimit = 50
 const maxHistoryLimit = 200
@@ -85,15 +98,18 @@ func handleHistory(e *core.RequestEvent) error {
 		}
 	}
 
-	filter := "collection_name = {:cn} && record_id = {:rid} && (event_type = 'create' || event_type = 'update')"
-	params := dbx.Params{"cn": "documents", "rid": doc.Id}
+	q := e.App.RecordQuery("audit_logs").
+		AndWhere(dbx.HashExp{"collection_name": "documents", "record_id": doc.Id}).
+		AndWhere(dbx.In("event_type", "create", "update")).
+		AndWhere(dbx.NewExp(notTimestampOnly)).
+		OrderBy("timestamp DESC").
+		Limit(int64(limit))
 	if before := strings.TrimSpace(e.Request.URL.Query().Get("before")); before != "" {
-		filter += " && timestamp < {:before}"
-		params["before"] = before
+		q = q.AndWhere(dbx.NewExp("timestamp < {:before}", dbx.Params{"before": before}))
 	}
 
-	records, err := e.App.FindRecordsByFilter("audit_logs", filter, "-timestamp", limit, 0, params)
-	if err != nil {
+	var records []*core.Record
+	if err := q.All(&records); err != nil {
 		return e.InternalServerError("Failed to load history.", err)
 	}
 
