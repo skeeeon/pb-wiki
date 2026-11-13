@@ -71,7 +71,7 @@ nav_order: 20               # sidebar position among siblings (then by name)
 ...
 ```
 
-Relative links to other files in the tree, such as `[Deploy](../ops/deploy.md#rollback)`, are rewritten to wiki URLs (`/doc/ops/deploy#rollback`), so the source files still link correctly on disk and on a git host. A relative `.md` link that matches no imported file is left as it is and reported.
+Relative links to other files in the tree, such as `[Deploy](../ops/deploy.md#rollback)`, are rewritten to wiki URLs (`/doc/ops/deploy#rollback`), so the source files still link correctly on disk and on a git host. A relative `.md` link that matches no imported file is left as it is and reported. An `#anchor` link, to an imported file or to the same page, that matches no heading id in that page is also reported (ids as in [Supported markdown](#supported-markdown); the importer finds `#` headings outside code blocks only). Reports are warnings: the import still runs.
 
 Records are matched by `path`, so re-running the import updates existing documents in place. On an update, `access`, `groups` and `nav_order` only change when the frontmatter sets them. Parents are written before their children, so new pages inherit access from a parent created in the same run. Files without a `path` are logged and skipped; duplicate paths within the input tree are reported as an error before any writes happen.
 

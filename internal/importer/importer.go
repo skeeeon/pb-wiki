@@ -21,7 +21,8 @@
 //
 // Relative links to other .md files in the tree ([Deploy](../ops/deploy.md#rollback))
 // are rewritten to wiki URLs (/doc/ops/deploy#rollback), so the source files
-// still link correctly when browsed on disk or in a git host.
+// still link correctly when browsed on disk or in a git host. A link whose
+// file or #anchor matches no imported file or heading is reported, not fatal.
 //
 // Files without frontmatter, or with frontmatter missing `path`, are skipped
 // (logged, not fatal) so a partial input tree doesn't abort the whole run.
@@ -72,7 +73,8 @@ optionally declare "title", "access", "groups" and "nav_order":
 
 If "title" is omitted, the first H1 in the body is used and stripped. Without
 "access", new pages inherit their parent page's access. Relative links to
-other .md files in the tree become wiki links. Records are matched by path,
+other .md files in the tree become wiki links; a link whose file or #anchor
+matches nothing is reported. Records are matched by path,
 so re-running is safe.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
@@ -160,11 +162,20 @@ func run(app core.App, root string) error {
 	// new page without `access` can inherit from a parent created in this run.
 	sort.Slice(pages, func(i, j int) bool { return *pages[i].fm.Path < *pages[j].fm.Path })
 
+	idsOf := map[string]map[string]bool{} // wiki path → heading ids
+	for _, pg := range pages {
+		idsOf[*pg.fm.Path] = headingIDs(pg.body)
+	}
+
 	var created, updated, unchanged int
 	for _, pg := range pages {
-		body, missing := rewriteLinks(pg.body, filepath.Dir(pg.file), pathOf)
+		dir := filepath.Dir(pg.file)
+		body, missing := rewriteLinks(pg.body, dir, pathOf)
 		for _, target := range missing {
 			fmt.Printf("  warn   %s: link to %s does not match an imported file\n", pg.file, target)
+		}
+		for _, target := range brokenAnchors(pg.body, dir, *pg.fm.Path, pathOf, idsOf) {
+			fmt.Printf("  warn   %s: link to %s matches no heading\n", pg.file, target)
 		}
 		pg.body = body
 

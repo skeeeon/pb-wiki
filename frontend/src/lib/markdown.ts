@@ -28,6 +28,8 @@ export interface RenderedDoc {
 // to '-'. Matches what the TOC links to and what markdown-it-anchor stamps
 // on each heading_open token. Keeping '_' matches GitHub and MkDocs, so
 // imported #anchor links keep working.
+// Keep in step with slugify in internal/importer/anchors.go, which the
+// importer uses to report #anchor links that match no heading.
 export function slugify(text: string): string {
   return text
     .toLowerCase()

@@ -1,8 +1,10 @@
 package importer
 
 import (
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -181,4 +183,69 @@ func TestRunSkipsUnchangedPages(t *testing.T) {
 	if got := updated(""); got != home {
 		t.Errorf("unchanged homepage was saved again: %q, was %q", got, home)
 	}
+}
+
+// An #anchor link that matches no heading in its target page is reported;
+// one that matches is not. The import still succeeds.
+func TestRunWarnsBrokenAnchors(t *testing.T) {
+	app, err := tests.NewTestApp(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Cleanup()
+	hooks.Register(app)
+
+	src := t.TempDir()
+	write := func(name, content string) {
+		if err := os.WriteFile(filepath.Join(src, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("guide.md", "---\npath: guide\n---\n# Guide\n\n## 2.1 `server_url` and `websocket_urls`\n\n"+
+		"[good](ops.md#restart-the-service) [bad](ops.md#restart) "+
+		"[here](#21-server_url-and-websocket_urls) [stripped](#21-serverurl-and-websocketurls) "+
+		"[title](#guide)\n")
+	write("ops.md", "---\npath: ops\n---\n# Ops\n\n## Restart the service\n")
+
+	out := captureStdout(t, func() {
+		if err := run(app, src); err != nil {
+			t.Fatal(err)
+		}
+	})
+	guide := filepath.Join(src, "guide.md")
+	for _, want := range []string{
+		"  warn   " + guide + ": link to ops.md#restart matches no heading\n",
+		"  warn   " + guide + ": link to #21-serverurl-and-websocketurls matches no heading\n",
+		// splitTitle took the H1 out of the body, so it has no id.
+		"  warn   " + guide + ": link to #guide matches no heading\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	for _, good := range []string{"#restart-the-service", "#21-server_url-and-websocket_urls "} {
+		if strings.Contains(out, good) {
+			t.Errorf("good anchor %s was reported:\n%s", good, out)
+		}
+	}
+}
+
+// captureStdout returns what f prints to stdout.
+func captureStdout(t *testing.T, f func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout := os.Stdout
+	os.Stdout = w
+	defer func() { os.Stdout = stdout }()
+	done := make(chan string)
+	go func() {
+		b, _ := io.ReadAll(r)
+		done <- string(b)
+	}()
+	f()
+	w.Close()
+	return <-done
 }
