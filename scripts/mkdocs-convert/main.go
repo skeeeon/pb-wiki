@@ -299,7 +299,9 @@ func checkAnchors(files []string, pages map[string]string) []string {
 			if file != "" {
 				target = path.Clean(path.Join(path.Dir(rel), file))
 			}
-			if headings, ok := ids[target]; ok && !headings[anchor] {
+			// A GitHub-style double hyphen resolves: the wiki collapses link
+			// fragments as slugify collapses ids (anchorId in frontend/src/lib/markdown.ts).
+			if headings, ok := ids[target]; ok && !headings[slugDash.ReplaceAllString(anchor, "-")] {
 				misses = append(misses, rel+" -> "+m[1])
 			}
 		}

@@ -138,7 +138,7 @@ CommonMark plus a small, opinionated set of extensions:
 
 | Feature | Syntax |
 |---|---|
-| Heading anchors | auto on every heading; lowercase, punctuation except `_` and `-` removed (same ids as GitHub and MkDocs) |
+| Heading anchors | auto on every heading; lowercase, punctuation except `_` and `-` removed, repeated hyphens collapsed (the ids MkDocs gives). A link with GitHub's double hyphen, from a heading with ` & ` or ` / `, reaches the same heading |
 | Task lists | `- [ ]` / `- [x]` |
 | Subscript | `~text~` |
 | Superscript | `^text^` |

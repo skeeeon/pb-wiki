@@ -30,6 +30,16 @@ func slugify(s string) string {
 	return slugDash.ReplaceAllString(s, "-")
 }
 
+// anchorID maps a link's #fragment to the id the wiki gave the heading.
+// GitHub keeps a double hyphen where a heading had " & " or " / "
+// (#door-monitoring--alarms); slugify collapses it, as MkDocs does, so a wiki
+// id never holds one, and the renderer collapses every link fragment the same
+// way. A link written for GitHub therefore resolves. It must stay in step
+// with anchorId in frontend/src/lib/markdown.ts.
+func anchorID(fragment string) string {
+	return slugDash.ReplaceAllString(fragment, "-")
+}
+
 var (
 	atxHeading    = regexp.MustCompile(`^ {0,3}#{1,6}(?:[ \t]+(.*))?$`)
 	closingHashes = regexp.MustCompile(`(?:^|[ \t])#+[ \t]*$`)
@@ -204,7 +214,7 @@ func brokenAnchors(body, dir, self string, pathOf map[string]string, idsOf map[s
 		if u, err := url.PathUnescape(anchor); err == nil {
 			id = u
 		}
-		if !idsOf[slug][id] {
+		if !idsOf[slug][anchorID(id)] {
 			broken = append(broken, target+"#"+anchor)
 		}
 	}

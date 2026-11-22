@@ -8,7 +8,7 @@ import { useActiveHeading } from '@/composables/useActiveHeading'
 import { publishPageToc } from '@/composables/usePageToc'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
-import { renderDoc } from '@/lib/markdown'
+import { anchorId, renderDoc } from '@/lib/markdown'
 import { relativeTime } from '@/lib/time'
 import type { UserRecord } from '@/lib/types'
 import Breadcrumbs from '@/components/Breadcrumbs.vue'
@@ -107,8 +107,10 @@ watch(
   async ([d, hash]) => {
     if (!d || !hash || hash === '#') return
     await nextTick()
+    // A URL pasted from GitHub can carry a double hyphen the wiki's ids
+    // never have (anchorId).
     const id = decodeURIComponent(hash.slice(1))
-    document.getElementById(id)?.scrollIntoView({ block: 'start' })
+    ;(document.getElementById(id) ?? document.getElementById(anchorId(id)))?.scrollIntoView({ block: 'start' })
   },
   { immediate: true },
 )

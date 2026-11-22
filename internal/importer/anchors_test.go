@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -61,5 +62,21 @@ func TestHeadingIDs(t *testing.T) {
 	}
 	if got := headingIDs(body); !reflect.DeepEqual(got, want) {
 		t.Errorf("headingIDs = %v, want %v", got, want)
+	}
+}
+
+// A link written for GitHub, with the double hyphen GitHub keeps for " & ",
+// resolves, because the renderer collapses link fragments as slugify
+// collapses ids. The MkDocs form resolves too, and a real miss still warns.
+func TestBrokenAnchorsAcceptsGitHubAndMkDocsForms(t *testing.T) {
+	idsOf := map[string]map[string]bool{
+		"ops/protocol": headingIDs("## 3. Door Monitoring & Alarms\n\n## 5. Declarative workspaces (pull / apply)\n"),
+	}
+	pathOf := map[string]string{filepath.Join("/src", "protocol.md"): "ops/protocol"}
+	body := "[a](protocol.md#3-door-monitoring--alarms) [b](protocol.md#3-door-monitoring-alarms) " +
+		"[c](protocol.md#5-declarative-workspaces-pull--apply) [d](protocol.md#no-such-heading)"
+	got := brokenAnchors(body, "/src", "ops/other", pathOf, idsOf)
+	if len(got) != 1 || got[0] != "protocol.md#no-such-heading" {
+		t.Fatalf("broken = %v, want only protocol.md#no-such-heading", got)
 	}
 }

@@ -39,6 +39,16 @@ export function slugify(text: string): string {
     .replace(/-+/g, '-')
 }
 
+// anchorId maps a link's #fragment to the id the wiki gave the heading.
+// GitHub keeps a double hyphen where a heading had " & " or " / "
+// (#door-monitoring--alarms); slugify collapses it, as MkDocs does, so a wiki
+// id never holds one. Collapsing a fragment therefore loses nothing, and a
+// link written for GitHub reaches the same heading here. Keep in step with
+// anchorID in internal/importer/anchors.go.
+export function anchorId(fragment: string): string {
+  return fragment.replace(/-+/g, '-')
+}
+
 // html: false — never trust raw HTML in user-supplied markdown.
 // linkify   — auto-link bare URLs.
 // breaks    — single newlines don't become <br>; require blank lines.
@@ -62,6 +72,10 @@ md.renderer.rules.link_open = (tokens, idx, opts, env, self) => {
   if (/^https?:\/\//i.test(href)) {
     tokens[idx].attrSet('target', '_blank')
     tokens[idx].attrSet('rel', 'noopener noreferrer')
+  } else if (href.includes('#')) {
+    // An in-wiki link: point its fragment at the wiki's heading id.
+    const i = href.indexOf('#')
+    tokens[idx].attrSet('href', href.slice(0, i + 1) + anchorId(href.slice(i + 1)))
   }
   return defaultLinkOpen(tokens, idx, opts, env, self)
 }
