@@ -64,6 +64,11 @@ const router = createRouter({
       props: (route) => ({ path: joinPath(route.params.path), mode: 'new' as const }),
     },
     {
+      path: '/recent',
+      name: 'recent',
+      component: () => import('@/views/Recent.vue'),
+    },
+    {
       path: '/account',
       name: 'account',
       component: () => import('@/views/Account.vue'),

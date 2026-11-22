@@ -47,3 +47,36 @@ export function buildTree(docs: DocumentRecord[]): TreeNode[] {
   sort(root)
   return root.children
 }
+
+// childrenOf returns the nodes directly under path, in sidebar order. Folders
+// with no page of their own (title null) are included, as in the sidebar.
+export function childrenOf(docs: DocumentRecord[], path: string): TreeNode[] {
+  let nodes = buildTree(docs)
+  if (path === '') return nodes
+  for (const seg of path.split('/')) {
+    const next = nodes.find((n) => n.segment === seg)
+    if (!next) return []
+    nodes = next.children
+  }
+  return nodes
+}
+
+// suggestionsFor finds pages a missing path may have meant, by its last
+// segment: pages that end in that segment first (likely moved), then pages
+// whose path or title contains it.
+export function suggestionsFor(docs: DocumentRecord[], path: string, limit = 5): DocumentRecord[] {
+  const seg = path.split('/').pop()?.toLowerCase() ?? ''
+  if (seg.length < 2) return []
+  const score = (d: DocumentRecord) => {
+    const p = d.path.toLowerCase()
+    if (p === seg || p.endsWith('/' + seg)) return 2
+    if (p.includes(seg) || (d.title ?? '').toLowerCase().includes(seg)) return 1
+    return 0
+  }
+  return docs
+    .map((d) => ({ d, s: score(d) }))
+    .filter((x) => x.s > 0 && x.d.path !== path && !x.d.path.startsWith(path + '/'))
+    .sort((a, b) => b.s - a.s || a.d.path.localeCompare(b.d.path))
+    .slice(0, limit)
+    .map((x) => x.d)
+}

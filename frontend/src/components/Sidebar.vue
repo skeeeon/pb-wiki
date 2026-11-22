@@ -255,14 +255,23 @@ function toggleExpand(path: string) {
       <template v-else>
         <div class="flex items-center justify-between mb-1 px-2">
           <h2 class="text-xs uppercase tracking-wide text-slate-500">Pages</h2>
-          <RouterLink
-            v-if="auth.isEditor"
-            to="/new/"
-            class="text-xs text-slate-500 hover:underline"
-            title="Create a new top-level page"
-          >
-            + New
-          </RouterLink>
+          <div class="flex items-center gap-3">
+            <RouterLink
+              to="/recent"
+              class="text-xs text-slate-500 hover:underline"
+              title="Recently changed pages"
+            >
+              Recent
+            </RouterLink>
+            <RouterLink
+              v-if="auth.isEditor"
+              to="/new/"
+              class="text-xs text-slate-500 hover:underline"
+              title="Create a new top-level page"
+            >
+              + New
+            </RouterLink>
+          </div>
         </div>
 
         <RouterLink

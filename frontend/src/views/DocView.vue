@@ -9,10 +9,13 @@ import { publishPageToc } from '@/composables/usePageToc'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
 import { renderDoc } from '@/lib/markdown'
+import { relativeTime } from '@/lib/time'
 import type { UserRecord } from '@/lib/types'
 import Breadcrumbs from '@/components/Breadcrumbs.vue'
 import MarkdownView from '@/components/MarkdownView.vue'
 import TocSidebar from '@/components/TocSidebar.vue'
+import { childrenOf, suggestionsFor } from '@/components/sidebarTree'
+import { useDocsStore } from '@/stores/docs'
 
 const props = defineProps<{ path: string }>()
 const path = toRef(props, 'path')
@@ -36,6 +39,16 @@ const editTo = computed(() => `/edit/${path.value}`)
 const newChildTo = computed(() => `/new/${path.value ? path.value + '/' : ''}`)
 const historyTo = computed(() => `/history/${path.value}`)
 
+// Pages directly under this one, from the list the sidebar already loads.
+// A path with no page of its own but pages beneath it (a folder) shows them
+// in place of a bare "Not found".
+const docsStore = useDocsStore()
+const subpages = computed(() => childrenOf(docsStore.list, path.value))
+// For a missing page, likely targets: a page that was moved keeps its last
+// segment, so match on that.
+const suggestions = computed(() => (notFound.value ? suggestionsFor(docsStore.list, path.value) : []))
+const docLink = (p: string) => (p === '' ? '/' : `/doc/${p}`)
+
 const rendered = computed(() => renderDoc(doc.value?.body ?? ''))
 const tocHeadings = computed(() => rendered.value.headings.filter((h) => h.level >= 1 && h.level <= 4))
 // A one-entry contents list is just noise, so a page needs two headings.
@@ -51,19 +64,6 @@ const editor = computed<UserRecord | null>(() => {
 const editorName = computed(() => editor.value?.name || editor.value?.email || null)
 const editedRelative = computed(() => (doc.value?.updated ? relativeTime(doc.value.updated) : null))
 const editedAbsolute = computed(() => (doc.value?.updated ? new Date(doc.value.updated).toLocaleString() : null))
-
-// `Intl.RelativeTimeFormat` for "3 days ago" — keeps us off date libraries.
-function relativeTime(iso: string): string {
-  const diffSec = Math.round((new Date(iso).getTime() - Date.now()) / 1000)
-  const abs = Math.abs(diffSec)
-  const fmt = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
-  if (abs < 60)       return fmt.format(diffSec, 'second')
-  if (abs < 3600)     return fmt.format(Math.round(diffSec / 60), 'minute')
-  if (abs < 86400)    return fmt.format(Math.round(diffSec / 3600), 'hour')
-  if (abs < 2592000)  return fmt.format(Math.round(diffSec / 86400), 'day')
-  if (abs < 31536000) return fmt.format(Math.round(diffSec / 2592000), 'month')
-  return fmt.format(Math.round(diffSec / 31536000), 'year')
-}
 
 // Once the inline mobile TOC scrolls out of view, the phone top bar (App.vue)
 // offers the contents instead, so long pages keep a way to jump headings.
@@ -128,6 +128,23 @@ watch(
       <p class="text-slate-600 dark:text-slate-400 text-sm">
         No document at <code>{{ path || '/' }}</code>.
       </p>
+      <div v-if="subpages.length > 0" class="space-y-1">
+        <h2 class="text-sm font-medium">Pages under this path</h2>
+        <ul class="text-sm list-disc pl-5 space-y-0.5">
+          <li v-for="n in subpages" :key="n.fullPath">
+            <RouterLink :to="docLink(n.fullPath)" class="underline">{{ n.title || n.segment }}</RouterLink>
+          </li>
+        </ul>
+      </div>
+      <div v-if="suggestions.length > 0" class="space-y-1">
+        <h2 class="text-sm font-medium">Did you mean</h2>
+        <ul class="text-sm list-disc pl-5 space-y-0.5">
+          <li v-for="d in suggestions" :key="d.id">
+            <RouterLink :to="docLink(d.path)" class="underline">{{ d.title || d.path || 'Home' }}</RouterLink>
+            <span class="ml-1.5 text-xs text-slate-500 font-mono">{{ d.path }}</span>
+          </li>
+        </ul>
+      </div>
       <RouterLink
         v-if="auth.isEditor"
         :to="`/new/${path}`"
@@ -226,6 +243,26 @@ watch(
           </div>
         </aside>
       </div>
+
+      <!-- The homepage's children are the whole top level, which the sidebar
+           already shows. -->
+      <nav
+        v-if="path !== '' && subpages.length > 0"
+        class="border-t border-slate-200 dark:border-slate-800 pt-4 space-y-2"
+        aria-label="Subpages"
+      >
+        <h2 class="text-xs uppercase tracking-wide text-slate-500">Subpages</h2>
+        <ul class="grid gap-1 sm:grid-cols-2">
+          <li v-for="n in subpages" :key="n.fullPath">
+            <RouterLink
+              :to="docLink(n.fullPath)"
+              class="block px-2 py-1.5 -mx-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              {{ n.title || n.segment }}
+            </RouterLink>
+          </li>
+        </ul>
+      </nav>
     </article>
   </div>
 </template>

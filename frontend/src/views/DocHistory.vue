@@ -9,6 +9,7 @@ import { useDoc } from '@/composables/useDoc'
 import { useDocHistory, type Revision } from '@/composables/useDocHistory'
 import { useDocumentTitle } from '@/composables/useDocumentTitle'
 import { renderDoc } from '@/lib/markdown'
+import { relativeTime } from '@/lib/time'
 import Breadcrumbs from '@/components/Breadcrumbs.vue'
 import MarkdownView from '@/components/MarkdownView.vue'
 
@@ -69,18 +70,6 @@ function titleOf(snapshot: Revision['before' | 'after']): string {
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleString()
-}
-
-function relativeTime(iso: string): string {
-  const diffSec = Math.round((new Date(iso).getTime() - Date.now()) / 1000)
-  const abs = Math.abs(diffSec)
-  const fmt = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
-  if (abs < 60)       return fmt.format(diffSec, 'second')
-  if (abs < 3600)     return fmt.format(Math.round(diffSec / 60), 'minute')
-  if (abs < 86400)    return fmt.format(Math.round(diffSec / 3600), 'hour')
-  if (abs < 2592000)  return fmt.format(Math.round(diffSec / 86400), 'day')
-  if (abs < 31536000) return fmt.format(Math.round(diffSec / 2592000), 'month')
-  return fmt.format(Math.round(diffSec / 31536000), 'year')
 }
 
 function editorOf(r: Revision): string {
