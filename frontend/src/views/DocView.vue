@@ -252,13 +252,16 @@ watch(
         aria-label="Subpages"
       >
         <h2 class="text-xs uppercase tracking-wide text-slate-500">Subpages</h2>
-        <ul class="grid gap-1 sm:grid-cols-2">
+        <ul class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <li v-for="n in subpages" :key="n.fullPath">
             <RouterLink
               :to="docLink(n.fullPath)"
-              class="block px-2 py-1.5 -mx-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+              class="block h-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-primary hover:bg-primary/5"
             >
-              {{ n.title || n.segment }}
+              <div class="font-medium truncate">{{ n.title || n.segment }}</div>
+              <div v-if="n.children.length > 0" class="text-xs text-slate-500">
+                {{ n.children.length }} {{ n.children.length === 1 ? 'page' : 'pages' }}
+              </div>
             </RouterLink>
           </li>
         </ul>
